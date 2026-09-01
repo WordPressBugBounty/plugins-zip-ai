@@ -1,0 +1,4732 @@
+@import url(https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap);
+/* ── Popover / Floating card mode ────────────────────────────────────────────
+ * Panel renders as a compact floating card anchored to the bottom-right,
+ * above the FAB trigger. No body margin shift, no admin bar adjustment.
+ * The container shrinks from full-height sidebar to a fixed-size card.
+ */
+
+/* Prevent WP content from shifting when popover is open */
+body.zip-ai-popover-mode.zip-ai-assistant-open {
+  margin-right: 0 !important;
+  width: 100vw !important;
+  overflow-x: clip;
+}
+
+body.zip-ai-popover-mode.zip-ai-assistant-open #wpadminbar {
+  right: 0 !important;
+}
+
+body.zip-ai-popover-mode.zip-ai-assistant-open .interface-interface-skeleton,
+.block-editor-page body.zip-ai-popover-mode.zip-ai-assistant-open .interface-interface-skeleton {
+  margin-right: 0 !important;
+}
+
+/* Card shape and size — double body class for specificity over block-editor rules */
+body.zip-ai-popover-mode .zip-ai-iframe-container,
+body.zip-ai-popover-mode.block-editor-page .zip-ai-iframe-container {
+  top: auto;
+  bottom: 96px;
+  right: -420px;
+  /* Size: CSS vars so JS resize can override. !important keeps precedence
+     over sidebar width variables. */
+  width: var(--zipwp-popover-w, 420px) !important;
+  height: var(--zipwp-popover-h, 620px) !important;
+  max-height: var(--zipwp-popover-max-h, calc(100vh - 120px));
+  border-radius: 16px;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 12px 24px -8px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  /* No overflow:hidden — tooltips and dropdowns portal inside this container
+     and must not be clipped. Inner content handles its own overflow. */
+  overflow: visible;
+}
+
+/* Inner React root clips content to the rounded card shape */
+body.zip-ai-popover-mode .zip-ai-iframe-container #chat-assistant-root {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+body.zip-ai-popover-mode .zip-ai-iframe-container.zip-ai-iframe-visible {
+  right: 24px;
+}
+
+/* Hide sidebar resize handle in popover mode */
+body.zip-ai-popover-mode .zip-ai-resize-handle {
+  display: none !important;
+}
+
+/* Drag cursor on popover header */
+body.zip-ai-popover-mode [data-popover-drag] {
+  cursor: grab;
+}
+body.zip-ai-popover-mode [data-popover-drag]:active {
+  cursor: grabbing;
+}
+
+/* Popover entry animation — only when not dragged to a custom position */
+body.zip-ai-popover-mode .zip-ai-iframe-container.zip-ai-iframe-visible:not([style*="left"]) {
+  animation: zipwp-popover-in 0.25s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* ── Resize handles ────────────────────────────────────────────────────────
+ * Injected by popover-drag.js — 4 edges + 4 corners.
+ * Only active in popover mode; hidden elsewhere.
+ */
+.zipwp-popover-resize {
+  display: none;
+}
+body.zip-ai-popover-mode .zipwp-popover-resize {
+  display: block;
+  position: absolute;
+  z-index: 10;
+}
+/* Edges — 6px thick, along the side */
+body.zip-ai-popover-mode .zipwp-popover-resize--n { top: -3px; left: 12px; right: 12px; height: 6px; cursor: n-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--s { bottom: -3px; left: 12px; right: 12px; height: 6px; cursor: s-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--e { right: -3px; top: 12px; bottom: 12px; width: 6px; cursor: e-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--w { left: -3px; top: 12px; bottom: 12px; width: 6px; cursor: w-resize; }
+/* Corners — 14x14, on top of edges */
+body.zip-ai-popover-mode .zipwp-popover-resize--nw { top: -4px; left: -4px; width: 14px; height: 14px; cursor: nw-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--ne { top: -4px; right: -4px; width: 14px; height: 14px; cursor: ne-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--sw { bottom: -4px; left: -4px; width: 14px; height: 14px; cursor: sw-resize; }
+body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; width: 14px; height: 14px; cursor: se-resize; }
+
+@keyframes zipwp-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+*, ::before, ::after{
+    --tw-border-spacing-x: 0;
+    --tw-border-spacing-y: 0;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    --tw-rotate: 0;
+    --tw-skew-x: 0;
+    --tw-skew-y: 0;
+    --tw-scale-x: 1;
+    --tw-scale-y: 1;
+    --tw-pan-x:  ;
+    --tw-pan-y:  ;
+    --tw-pinch-zoom:  ;
+    --tw-scroll-snap-strictness: proximity;
+    --tw-gradient-from-position:  ;
+    --tw-gradient-via-position:  ;
+    --tw-gradient-to-position:  ;
+    --tw-ordinal:  ;
+    --tw-slashed-zero:  ;
+    --tw-numeric-figure:  ;
+    --tw-numeric-spacing:  ;
+    --tw-numeric-fraction:  ;
+    --tw-ring-inset:  ;
+    --tw-ring-offset-width: 0px;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-color: rgb(59 130 246 / 0.5);
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-shadow: 0 0 #0000;
+    --tw-shadow-colored: 0 0 #0000;
+    --tw-blur:  ;
+    --tw-brightness:  ;
+    --tw-contrast:  ;
+    --tw-grayscale:  ;
+    --tw-hue-rotate:  ;
+    --tw-invert:  ;
+    --tw-saturate:  ;
+    --tw-sepia:  ;
+    --tw-drop-shadow:  ;
+    --tw-backdrop-blur:  ;
+    --tw-backdrop-brightness:  ;
+    --tw-backdrop-contrast:  ;
+    --tw-backdrop-grayscale:  ;
+    --tw-backdrop-hue-rotate:  ;
+    --tw-backdrop-invert:  ;
+    --tw-backdrop-opacity:  ;
+    --tw-backdrop-saturate:  ;
+    --tw-backdrop-sepia:  ;
+    --tw-contain-size:  ;
+    --tw-contain-layout:  ;
+    --tw-contain-paint:  ;
+    --tw-contain-style:  ;
+}
+
+::backdrop{
+    --tw-border-spacing-x: 0;
+    --tw-border-spacing-y: 0;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    --tw-rotate: 0;
+    --tw-skew-x: 0;
+    --tw-skew-y: 0;
+    --tw-scale-x: 1;
+    --tw-scale-y: 1;
+    --tw-pan-x:  ;
+    --tw-pan-y:  ;
+    --tw-pinch-zoom:  ;
+    --tw-scroll-snap-strictness: proximity;
+    --tw-gradient-from-position:  ;
+    --tw-gradient-via-position:  ;
+    --tw-gradient-to-position:  ;
+    --tw-ordinal:  ;
+    --tw-slashed-zero:  ;
+    --tw-numeric-figure:  ;
+    --tw-numeric-spacing:  ;
+    --tw-numeric-fraction:  ;
+    --tw-ring-inset:  ;
+    --tw-ring-offset-width: 0px;
+    --tw-ring-offset-color: #fff;
+    --tw-ring-color: rgb(59 130 246 / 0.5);
+    --tw-ring-offset-shadow: 0 0 #0000;
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-shadow: 0 0 #0000;
+    --tw-shadow-colored: 0 0 #0000;
+    --tw-blur:  ;
+    --tw-brightness:  ;
+    --tw-contrast:  ;
+    --tw-grayscale:  ;
+    --tw-hue-rotate:  ;
+    --tw-invert:  ;
+    --tw-saturate:  ;
+    --tw-sepia:  ;
+    --tw-drop-shadow:  ;
+    --tw-backdrop-blur:  ;
+    --tw-backdrop-brightness:  ;
+    --tw-backdrop-contrast:  ;
+    --tw-backdrop-grayscale:  ;
+    --tw-backdrop-hue-rotate:  ;
+    --tw-backdrop-invert:  ;
+    --tw-backdrop-opacity:  ;
+    --tw-backdrop-saturate:  ;
+    --tw-backdrop-sepia:  ;
+    --tw-contain-size:  ;
+    --tw-contain-layout:  ;
+    --tw-contain-paint:  ;
+    --tw-contain-style:  ;
+}
+
+/* Light — zinc-neutral surfaces, purple primary */
+
+#chat-assistant-root {
+    --background: 0 0% 100%;
+    --foreground: 224 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 10% 10%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 5% 96.5%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.625rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    /* Legacy semantic tokens (markdown, inline styles, older components) */
+    --color-heading: hsl(var(--foreground));
+    --color-body: hsl(var(--foreground));
+    --color-medium: hsl(var(--muted-foreground));
+    --color-muted: hsl(var(--muted-foreground));
+    --color-faint: hsl(var(--muted-foreground));
+    --color-brand: hsl(var(--primary));
+    --color-brand-hover: hsl(262.1 83.3% 52%);
+    --color-brand-dark: hsl(262.1 83.3% 44%);
+    --color-surface: hsl(var(--background));
+    --color-surface-secondary: hsl(var(--muted));
+    --color-surface-hover: hsl(var(--accent));
+    --color-border-main: hsl(var(--border));
+    --color-border-light: hsl(var(--border));
+    --color-glass-border: hsl(var(--border) / 0.45);
+    --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    --font-sans: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI",
+      sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --color-surface-active: hsl(var(--accent));
+    --color-surface-blue: hsl(var(--primary) / 0.1);
+    /* Legacy — prefer border + bg-card / bg-primary in components */
+    --shadow-bubble-user: none;
+    --shadow-bubble-assistant: none;
+  }
+
+/* Dark — soft zinc-neutral, easy on eyes */
+
+#chat-assistant-root.dark {
+    --background: 228 8% 10%;
+    --foreground: 0 0% 92%;
+    --card: 228 6% 13%;
+    --card-foreground: 0 0% 92%;
+    --popover: 228 6% 14%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 262.1 75% 68%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 228 5% 18%;
+    --secondary-foreground: 0 0% 85%;
+    --muted: 228 5% 16%;
+    --muted-foreground: 228 5% 52%;
+    --accent: 228 5% 18%;
+    --accent-foreground: 0 0% 85%;
+    --destructive: 0 55% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 228 5% 20%;
+    --input: 228 5% 18%;
+    --ring: 262.1 75% 68%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+.\!container{
+    width: 100% !important;
+}
+.container{
+    width: 100%;
+}
+@media (min-width: 640px){
+
+    .\!container{
+        max-width: 640px !important;
+    }
+
+    .container{
+        max-width: 640px;
+    }
+}
+@media (min-width: 768px){
+
+    .\!container{
+        max-width: 768px !important;
+    }
+
+    .container{
+        max-width: 768px;
+    }
+}
+@media (min-width: 1024px){
+
+    .\!container{
+        max-width: 1024px !important;
+    }
+
+    .container{
+        max-width: 1024px;
+    }
+}
+@media (min-width: 1280px){
+
+    .\!container{
+        max-width: 1280px !important;
+    }
+
+    .container{
+        max-width: 1280px;
+    }
+}
+@media (min-width: 1536px){
+
+    .\!container{
+        max-width: 1536px !important;
+    }
+
+    .container{
+        max-width: 1536px;
+    }
+}
+#chat-assistant-root .sr-only{
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+#chat-assistant-root .pointer-events-none{
+    pointer-events: none;
+}
+#chat-assistant-root .pointer-events-auto{
+    pointer-events: auto;
+}
+#chat-assistant-root .\!visible{
+    visibility: visible !important;
+}
+#chat-assistant-root .visible{
+    visibility: visible;
+}
+#chat-assistant-root .invisible{
+    visibility: hidden;
+}
+#chat-assistant-root .collapse{
+    visibility: collapse;
+}
+#chat-assistant-root .static{
+    position: static;
+}
+#chat-assistant-root .fixed{
+    position: fixed;
+}
+#chat-assistant-root .absolute{
+    position: absolute;
+}
+#chat-assistant-root .relative{
+    position: relative;
+}
+#chat-assistant-root .sticky{
+    position: sticky;
+}
+#chat-assistant-root .inset-0{
+    inset: 0px;
+}
+#chat-assistant-root .-bottom-0\.5{
+    bottom: -0.125rem;
+}
+#chat-assistant-root .-left-0\.5{
+    left: -0.125rem;
+}
+#chat-assistant-root .-right-1\.5{
+    right: -0.375rem;
+}
+#chat-assistant-root .-top-1\.5{
+    top: -0.375rem;
+}
+#chat-assistant-root .bottom-0{
+    bottom: 0px;
+}
+#chat-assistant-root .bottom-2{
+    bottom: 0.5rem;
+}
+#chat-assistant-root .bottom-3{
+    bottom: 0.75rem;
+}
+#chat-assistant-root .bottom-\[3px\]{
+    bottom: 3px;
+}
+#chat-assistant-root .bottom-full{
+    bottom: 100%;
+}
+#chat-assistant-root .left-0{
+    left: 0px;
+}
+#chat-assistant-root .left-1\/2{
+    left: 50%;
+}
+#chat-assistant-root .left-2{
+    left: 0.5rem;
+}
+#chat-assistant-root .left-\[50\%\]{
+    left: 50%;
+}
+#chat-assistant-root .right-0{
+    right: 0px;
+}
+#chat-assistant-root .right-2{
+    right: 0.5rem;
+}
+#chat-assistant-root .right-4{
+    right: 1rem;
+}
+#chat-assistant-root .right-5{
+    right: 1.25rem;
+}
+#chat-assistant-root .top-0{
+    top: 0px;
+}
+#chat-assistant-root .top-2{
+    top: 0.5rem;
+}
+#chat-assistant-root .top-4{
+    top: 1rem;
+}
+#chat-assistant-root .top-5{
+    top: 1.25rem;
+}
+#chat-assistant-root .top-\[50\%\]{
+    top: 50%;
+}
+#chat-assistant-root .z-0{
+    z-index: 0;
+}
+#chat-assistant-root .z-10{
+    z-index: 10;
+}
+#chat-assistant-root .z-50{
+    z-index: 50;
+}
+#chat-assistant-root .z-\[100001\]{
+    z-index: 100001;
+}
+#chat-assistant-root .z-\[100002\]{
+    z-index: 100002;
+}
+#chat-assistant-root .z-\[1000\]{
+    z-index: 1000;
+}
+#chat-assistant-root .z-\[1099\]{
+    z-index: 1099;
+}
+#chat-assistant-root .z-\[1100\]{
+    z-index: 1100;
+}
+#chat-assistant-root .z-\[1\]{
+    z-index: 1;
+}
+#chat-assistant-root .z-\[2\]{
+    z-index: 2;
+}
+#chat-assistant-root .z-\[4\]{
+    z-index: 4;
+}
+#chat-assistant-root .z-\[5\]{
+    z-index: 5;
+}
+#chat-assistant-root .z-\[6\]{
+    z-index: 6;
+}
+#chat-assistant-root .m-0{
+    margin: 0px;
+}
+#chat-assistant-root .m-3{
+    margin: 0.75rem;
+}
+#chat-assistant-root .-mx-1{
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+}
+#chat-assistant-root .mx-0\.5{
+    margin-left: 0.125rem;
+    margin-right: 0.125rem;
+}
+#chat-assistant-root .mx-1{
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+}
+#chat-assistant-root .mx-3{
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+}
+#chat-assistant-root .mx-auto{
+    margin-left: auto;
+    margin-right: auto;
+}
+#chat-assistant-root .my-1{
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+#chat-assistant-root .my-2{
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+#chat-assistant-root .my-2\.5{
+    margin-top: 0.625rem;
+    margin-bottom: 0.625rem;
+}
+#chat-assistant-root .my-3{
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+#chat-assistant-root .my-3\.5{
+    margin-top: 0.875rem;
+    margin-bottom: 0.875rem;
+}
+#chat-assistant-root .my-5{
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+#chat-assistant-root .-mr-1{
+    margin-right: -0.25rem;
+}
+#chat-assistant-root .mb-0{
+    margin-bottom: 0px;
+}
+#chat-assistant-root .mb-0\.5{
+    margin-bottom: 0.125rem;
+}
+#chat-assistant-root .mb-1{
+    margin-bottom: 0.25rem;
+}
+#chat-assistant-root .mb-1\.5{
+    margin-bottom: 0.375rem;
+}
+#chat-assistant-root .mb-2{
+    margin-bottom: 0.5rem;
+}
+#chat-assistant-root .mb-2\.5{
+    margin-bottom: 0.625rem;
+}
+#chat-assistant-root .mb-3{
+    margin-bottom: 0.75rem;
+}
+#chat-assistant-root .mb-5{
+    margin-bottom: 1.25rem;
+}
+#chat-assistant-root .mb-6{
+    margin-bottom: 1.5rem;
+}
+#chat-assistant-root .mb-8{
+    margin-bottom: 2rem;
+}
+#chat-assistant-root .mb-\[var\(--bezel-width\)\]{
+    margin-bottom: var(--bezel-width);
+}
+#chat-assistant-root .ml-1{
+    margin-left: 0.25rem;
+}
+#chat-assistant-root .ml-1\.5{
+    margin-left: 0.375rem;
+}
+#chat-assistant-root .ml-2{
+    margin-left: 0.5rem;
+}
+#chat-assistant-root .ml-\[9px\]{
+    margin-left: 9px;
+}
+#chat-assistant-root .ml-auto{
+    margin-left: auto;
+}
+#chat-assistant-root .mr-1\.5{
+    margin-right: 0.375rem;
+}
+#chat-assistant-root .mr-auto{
+    margin-right: auto;
+}
+#chat-assistant-root .mt-0\.5{
+    margin-top: 0.125rem;
+}
+#chat-assistant-root .mt-1{
+    margin-top: 0.25rem;
+}
+#chat-assistant-root .mt-1\.5{
+    margin-top: 0.375rem;
+}
+#chat-assistant-root .mt-2{
+    margin-top: 0.5rem;
+}
+#chat-assistant-root .mt-3{
+    margin-top: 0.75rem;
+}
+#chat-assistant-root .mt-4{
+    margin-top: 1rem;
+}
+#chat-assistant-root .mt-5{
+    margin-top: 1.25rem;
+}
+#chat-assistant-root .mt-\[2px\]{
+    margin-top: 2px;
+}
+#chat-assistant-root .mt-\[var\(--bezel-width\)\]{
+    margin-top: var(--bezel-width);
+}
+#chat-assistant-root .mt-auto{
+    margin-top: auto;
+}
+#chat-assistant-root .mt-px{
+    margin-top: 1px;
+}
+#chat-assistant-root .\!block{
+    display: block !important;
+}
+#chat-assistant-root .block{
+    display: block;
+}
+#chat-assistant-root .inline-block{
+    display: inline-block;
+}
+#chat-assistant-root .inline{
+    display: inline;
+}
+#chat-assistant-root .flex{
+    display: flex;
+}
+#chat-assistant-root .inline-flex{
+    display: inline-flex;
+}
+#chat-assistant-root .table{
+    display: table;
+}
+#chat-assistant-root .grid{
+    display: grid;
+}
+#chat-assistant-root .list-item{
+    display: list-item;
+}
+#chat-assistant-root .hidden{
+    display: none;
+}
+#chat-assistant-root .aspect-square{
+    aspect-ratio: 1 / 1;
+}
+#chat-assistant-root .size-1\.5{
+    width: 0.375rem;
+    height: 0.375rem;
+}
+#chat-assistant-root .size-2\.5{
+    width: 0.625rem;
+    height: 0.625rem;
+}
+#chat-assistant-root .size-3{
+    width: 0.75rem;
+    height: 0.75rem;
+}
+#chat-assistant-root .size-5{
+    width: 1.25rem;
+    height: 1.25rem;
+}
+#chat-assistant-root .size-full{
+    width: 100%;
+    height: 100%;
+}
+#chat-assistant-root .h-0{
+    height: 0px;
+}
+#chat-assistant-root .h-1{
+    height: 0.25rem;
+}
+#chat-assistant-root .h-1\.5{
+    height: 0.375rem;
+}
+#chat-assistant-root .h-10{
+    height: 2.5rem;
+}
+#chat-assistant-root .h-12{
+    height: 3rem;
+}
+#chat-assistant-root .h-14{
+    height: 3.5rem;
+}
+#chat-assistant-root .h-2{
+    height: 0.5rem;
+}
+#chat-assistant-root .h-2\.5{
+    height: 0.625rem;
+}
+#chat-assistant-root .h-20{
+    height: 5rem;
+}
+#chat-assistant-root .h-3{
+    height: 0.75rem;
+}
+#chat-assistant-root .h-3\.5{
+    height: 0.875rem;
+}
+#chat-assistant-root .h-4{
+    height: 1rem;
+}
+#chat-assistant-root .h-5{
+    height: 1.25rem;
+}
+#chat-assistant-root .h-6{
+    height: 1.5rem;
+}
+#chat-assistant-root .h-7{
+    height: 1.75rem;
+}
+#chat-assistant-root .h-8{
+    height: 2rem;
+}
+#chat-assistant-root .h-9{
+    height: 2.25rem;
+}
+#chat-assistant-root .h-\[11px\]{
+    height: 11px;
+}
+#chat-assistant-root .h-\[18px\]{
+    height: 18px;
+}
+#chat-assistant-root .h-\[22px\]{
+    height: 22px;
+}
+#chat-assistant-root .h-\[26px\]{
+    height: 26px;
+}
+#chat-assistant-root .h-\[30px\]{
+    height: 30px;
+}
+#chat-assistant-root .h-\[38px\]{
+    height: 38px;
+}
+#chat-assistant-root .h-\[3px\]{
+    height: 3px;
+}
+#chat-assistant-root .h-\[40px\]{
+    height: 40px;
+}
+#chat-assistant-root .h-\[44px\]{
+    height: 44px;
+}
+#chat-assistant-root .h-\[50px\]{
+    height: 50px;
+}
+#chat-assistant-root .h-\[54px\]{
+    height: 54px;
+}
+#chat-assistant-root .h-\[55px\]{
+    height: 55px;
+}
+#chat-assistant-root .h-\[5px\]{
+    height: 5px;
+}
+#chat-assistant-root .h-\[60px\]{
+    height: 60px;
+}
+#chat-assistant-root .h-\[7px\]{
+    height: 7px;
+}
+#chat-assistant-root .h-\[90px\]{
+    height: 90px;
+}
+#chat-assistant-root .h-\[var\(--radix-select-trigger-height\)\]{
+    height: var(--radix-select-trigger-height);
+}
+#chat-assistant-root .h-auto{
+    height: auto;
+}
+#chat-assistant-root .h-full{
+    height: 100%;
+}
+#chat-assistant-root .h-px{
+    height: 1px;
+}
+#chat-assistant-root .max-h-20{
+    max-height: 5rem;
+}
+#chat-assistant-root .max-h-60{
+    max-height: 15rem;
+}
+#chat-assistant-root .max-h-96{
+    max-height: 24rem;
+}
+#chat-assistant-root .max-h-\[120px\]{
+    max-height: 120px;
+}
+#chat-assistant-root .max-h-\[140px\]{
+    max-height: 140px;
+}
+#chat-assistant-root .max-h-\[160px\]{
+    max-height: 160px;
+}
+#chat-assistant-root .max-h-\[200px\]{
+    max-height: 200px;
+}
+#chat-assistant-root .max-h-\[240px\]{
+    max-height: 240px;
+}
+#chat-assistant-root .max-h-\[280px\]{
+    max-height: 280px;
+}
+#chat-assistant-root .max-h-\[400px\]{
+    max-height: 400px;
+}
+#chat-assistant-root .max-h-\[600px\]{
+    max-height: 600px;
+}
+#chat-assistant-root .max-h-\[75vh\]{
+    max-height: 75vh;
+}
+#chat-assistant-root .min-h-0{
+    min-height: 0px;
+}
+#chat-assistant-root .min-h-\[100px\]{
+    min-height: 100px;
+}
+#chat-assistant-root .min-h-\[120px\]{
+    min-height: 120px;
+}
+#chat-assistant-root .min-h-\[150px\]{
+    min-height: 150px;
+}
+#chat-assistant-root .min-h-\[22px\]{
+    min-height: 22px;
+}
+#chat-assistant-root .min-h-\[400px\]{
+    min-height: 400px;
+}
+#chat-assistant-root .min-h-\[40px\]{
+    min-height: 40px;
+}
+#chat-assistant-root .min-h-\[60px\]{
+    min-height: 60px;
+}
+#chat-assistant-root .min-h-full{
+    min-height: 100%;
+}
+#chat-assistant-root .min-h-screen{
+    min-height: 100vh;
+}
+#chat-assistant-root .\!w-auto{
+    width: auto !important;
+}
+#chat-assistant-root .w-0{
+    width: 0px;
+}
+#chat-assistant-root .w-1{
+    width: 0.25rem;
+}
+#chat-assistant-root .w-1\.5{
+    width: 0.375rem;
+}
+#chat-assistant-root .w-1\/2{
+    width: 50%;
+}
+#chat-assistant-root .w-1\/3{
+    width: 33.333333%;
+}
+#chat-assistant-root .w-1\/4{
+    width: 25%;
+}
+#chat-assistant-root .w-10{
+    width: 2.5rem;
+}
+#chat-assistant-root .w-12{
+    width: 3rem;
+}
+#chat-assistant-root .w-14{
+    width: 3.5rem;
+}
+#chat-assistant-root .w-2{
+    width: 0.5rem;
+}
+#chat-assistant-root .w-2\.5{
+    width: 0.625rem;
+}
+#chat-assistant-root .w-20{
+    width: 5rem;
+}
+#chat-assistant-root .w-24{
+    width: 6rem;
+}
+#chat-assistant-root .w-3{
+    width: 0.75rem;
+}
+#chat-assistant-root .w-3\.5{
+    width: 0.875rem;
+}
+#chat-assistant-root .w-3\/4{
+    width: 75%;
+}
+#chat-assistant-root .w-4{
+    width: 1rem;
+}
+#chat-assistant-root .w-4\/5{
+    width: 80%;
+}
+#chat-assistant-root .w-5{
+    width: 1.25rem;
+}
+#chat-assistant-root .w-6{
+    width: 1.5rem;
+}
+#chat-assistant-root .w-7{
+    width: 1.75rem;
+}
+#chat-assistant-root .w-72{
+    width: 18rem;
+}
+#chat-assistant-root .w-8{
+    width: 2rem;
+}
+#chat-assistant-root .w-9{
+    width: 2.25rem;
+}
+#chat-assistant-root .w-\[120px\]{
+    width: 120px;
+}
+#chat-assistant-root .w-\[180px\]{
+    width: 180px;
+}
+#chat-assistant-root .w-\[18px\]{
+    width: 18px;
+}
+#chat-assistant-root .w-\[200px\]{
+    width: 200px;
+}
+#chat-assistant-root .w-\[22px\]{
+    width: 22px;
+}
+#chat-assistant-root .w-\[26px\]{
+    width: 26px;
+}
+#chat-assistant-root .w-\[30px\]{
+    width: 30px;
+}
+#chat-assistant-root .w-\[35\%\]{
+    width: 35%;
+}
+#chat-assistant-root .w-\[38px\]{
+    width: 38px;
+}
+#chat-assistant-root .w-\[40\%\]{
+    width: 40%;
+}
+#chat-assistant-root .w-\[44px\]{
+    width: 44px;
+}
+#chat-assistant-root .w-\[45\%\]{
+    width: 45%;
+}
+#chat-assistant-root .w-\[45px\]{
+    width: 45px;
+}
+#chat-assistant-root .w-\[50px\]{
+    width: 50px;
+}
+#chat-assistant-root .w-\[52px\]{
+    width: 52px;
+}
+#chat-assistant-root .w-\[55\%\]{
+    width: 55%;
+}
+#chat-assistant-root .w-\[60px\]{
+    width: 60px;
+}
+#chat-assistant-root .w-\[65\%\]{
+    width: 65%;
+}
+#chat-assistant-root .w-\[70\%\]{
+    width: 70%;
+}
+#chat-assistant-root .w-\[85\%\]{
+    width: 85%;
+}
+#chat-assistant-root .w-\[88\%\]{
+    width: 88%;
+}
+#chat-assistant-root .w-\[90\%\]{
+    width: 90%;
+}
+#chat-assistant-root .w-\[90px\]{
+    width: 90px;
+}
+#chat-assistant-root .w-\[calc\(var\(--device-width\)\+var\(--bezel-width\)\*2\)\]{
+    width: calc(var(--device-width) + var(--bezel-width) * 2);
+}
+#chat-assistant-root .w-\[min\(100\%\2c 640px\)\]{
+    width: min(100%, 640px);
+}
+#chat-assistant-root .w-\[var\(--device-width\)\]{
+    width: var(--device-width);
+}
+#chat-assistant-root .w-auto{
+    width: auto;
+}
+#chat-assistant-root .w-fit{
+    width: -moz-fit-content;
+    width: fit-content;
+}
+#chat-assistant-root .w-full{
+    width: 100%;
+}
+#chat-assistant-root .w-px{
+    width: 1px;
+}
+#chat-assistant-root .min-w-0{
+    min-width: 0px;
+}
+#chat-assistant-root .min-w-\[140px\]{
+    min-width: 140px;
+}
+#chat-assistant-root .min-w-\[180px\]{
+    min-width: 180px;
+}
+#chat-assistant-root .min-w-\[20px\]{
+    min-width: 20px;
+}
+#chat-assistant-root .min-w-\[240px\]{
+    min-width: 240px;
+}
+#chat-assistant-root .min-w-\[280px\]{
+    min-width: 280px;
+}
+#chat-assistant-root .min-w-\[40px\]{
+    min-width: 40px;
+}
+#chat-assistant-root .min-w-\[8rem\]{
+    min-width: 8rem;
+}
+#chat-assistant-root .min-w-\[var\(--radix-select-trigger-width\)\]{
+    min-width: var(--radix-select-trigger-width);
+}
+#chat-assistant-root .max-w-\[100px\]{
+    max-width: 100px;
+}
+#chat-assistant-root .max-w-\[160px\]{
+    max-width: 160px;
+}
+#chat-assistant-root .max-w-\[200px\]{
+    max-width: 200px;
+}
+#chat-assistant-root .max-w-\[260px\]{
+    max-width: 260px;
+}
+#chat-assistant-root .max-w-\[280px\]{
+    max-width: 280px;
+}
+#chat-assistant-root .max-w-\[300px\]{
+    max-width: 300px;
+}
+#chat-assistant-root .max-w-\[320px\]{
+    max-width: 320px;
+}
+#chat-assistant-root .max-w-\[340px\]{
+    max-width: 340px;
+}
+#chat-assistant-root .max-w-\[360px\]{
+    max-width: 360px;
+}
+#chat-assistant-root .max-w-\[380px\]{
+    max-width: 380px;
+}
+#chat-assistant-root .max-w-\[440px\]{
+    max-width: 440px;
+}
+#chat-assistant-root .max-w-\[480px\]{
+    max-width: 480px;
+}
+#chat-assistant-root .max-w-\[600px\]{
+    max-width: 600px;
+}
+#chat-assistant-root .max-w-\[640px\]{
+    max-width: 640px;
+}
+#chat-assistant-root .max-w-\[720px\]{
+    max-width: 720px;
+}
+#chat-assistant-root .max-w-\[75\%\]{
+    max-width: 75%;
+}
+#chat-assistant-root .max-w-\[760px\]{
+    max-width: 760px;
+}
+#chat-assistant-root .max-w-\[85\%\]{
+    max-width: 85%;
+}
+#chat-assistant-root .max-w-\[90px\]{
+    max-width: 90px;
+}
+#chat-assistant-root .max-w-\[92\%\]{
+    max-width: 92%;
+}
+#chat-assistant-root .max-w-\[calc\(100\%-32px\)\]{
+    max-width: calc(100% - 32px);
+}
+#chat-assistant-root .max-w-full{
+    max-width: 100%;
+}
+#chat-assistant-root .max-w-lg{
+    max-width: 32rem;
+}
+#chat-assistant-root .max-w-xs{
+    max-width: 20rem;
+}
+#chat-assistant-root .flex-1{
+    flex: 1 1 0%;
+}
+#chat-assistant-root .flex-\[0_0_40\%\]{
+    flex: 0 0 40%;
+}
+#chat-assistant-root .shrink{
+    flex-shrink: 1;
+}
+#chat-assistant-root .shrink-0{
+    flex-shrink: 0;
+}
+#chat-assistant-root .border-collapse{
+    border-collapse: collapse;
+}
+#chat-assistant-root .-translate-x-1\/2{
+    --tw-translate-x: -50%;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .-translate-y-2\.5{
+    --tw-translate-y: -0.625rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .translate-x-1{
+    --tw-translate-x: 0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .translate-x-\[-50\%\]{
+    --tw-translate-x: -50%;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .translate-y-0{
+    --tw-translate-y: 0px;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .translate-y-1{
+    --tw-translate-y: 0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .translate-y-\[-50\%\]{
+    --tw-translate-y: -50%;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .rotate-180{
+    --tw-rotate: 180deg;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .rotate-90{
+    --tw-rotate: 90deg;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .scale-105{
+    --tw-scale-x: 1.05;
+    --tw-scale-y: 1.05;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .transform{
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+@keyframes bounce{
+
+    0%, 100%{
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0.8,0,1,1);
+    }
+
+    50%{
+        transform: none;
+        animation-timing-function: cubic-bezier(0,0,0.2,1);
+    }
+}
+#chat-assistant-root .animate-\[bounce_0\.6s_infinite\]{
+    animation: bounce 0.6s infinite;
+}
+#chat-assistant-root .animate-\[slideInLeft_0\.2s_ease-out\]{
+    animation: slideInLeft 0.2s ease-out;
+}
+#chat-assistant-root .animate-\[slideInRight_0\.2s_ease-out\]{
+    animation: slideInRight 0.2s ease-out;
+}
+@keyframes spin{
+
+    to{
+        transform: rotate(360deg);
+    }
+}
+#chat-assistant-root .animate-\[spin_0\.8s_linear_infinite\]{
+    animation: spin 0.8s linear infinite;
+}
+@keyframes pulse{
+
+    50%{
+        opacity: .5;
+    }
+}
+#chat-assistant-root .animate-pulse{
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes spin{
+
+    to{
+        transform: rotate(360deg);
+    }
+}
+#chat-assistant-root .animate-spin{
+    animation: spin 1s linear infinite;
+}
+#chat-assistant-root .cursor-crosshair{
+    cursor: crosshair;
+}
+#chat-assistant-root .cursor-default{
+    cursor: default;
+}
+#chat-assistant-root .cursor-pointer{
+    cursor: pointer;
+}
+#chat-assistant-root .touch-none{
+    touch-action: none;
+}
+#chat-assistant-root .select-none{
+    -webkit-user-select: none;
+       -moz-user-select: none;
+            user-select: none;
+}
+#chat-assistant-root .resize-none{
+    resize: none;
+}
+#chat-assistant-root .resize-y{
+    resize: vertical;
+}
+#chat-assistant-root .resize{
+    resize: both;
+}
+#chat-assistant-root .list-decimal{
+    list-style-type: decimal;
+}
+#chat-assistant-root .list-disc{
+    list-style-type: disc;
+}
+#chat-assistant-root .list-none{
+    list-style-type: none;
+}
+#chat-assistant-root .appearance-none{
+    -webkit-appearance: none;
+       -moz-appearance: none;
+            appearance: none;
+}
+#chat-assistant-root .grid-cols-2{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#chat-assistant-root .grid-cols-3{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#chat-assistant-root .grid-cols-8{
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+#chat-assistant-root .flex-row{
+    flex-direction: row;
+}
+#chat-assistant-root .flex-col{
+    flex-direction: column;
+}
+#chat-assistant-root .flex-col-reverse{
+    flex-direction: column-reverse;
+}
+#chat-assistant-root .flex-wrap{
+    flex-wrap: wrap;
+}
+#chat-assistant-root .items-start{
+    align-items: flex-start;
+}
+#chat-assistant-root .items-end{
+    align-items: flex-end;
+}
+#chat-assistant-root .items-center{
+    align-items: center;
+}
+#chat-assistant-root .items-baseline{
+    align-items: baseline;
+}
+#chat-assistant-root .items-stretch{
+    align-items: stretch;
+}
+#chat-assistant-root .justify-start{
+    justify-content: flex-start;
+}
+#chat-assistant-root .justify-end{
+    justify-content: flex-end;
+}
+#chat-assistant-root .justify-center{
+    justify-content: center;
+}
+#chat-assistant-root .justify-between{
+    justify-content: space-between;
+}
+#chat-assistant-root .gap-0{
+    gap: 0px;
+}
+#chat-assistant-root .gap-0\.5{
+    gap: 0.125rem;
+}
+#chat-assistant-root .gap-1{
+    gap: 0.25rem;
+}
+#chat-assistant-root .gap-1\.5{
+    gap: 0.375rem;
+}
+#chat-assistant-root .gap-2{
+    gap: 0.5rem;
+}
+#chat-assistant-root .gap-2\.5{
+    gap: 0.625rem;
+}
+#chat-assistant-root .gap-3{
+    gap: 0.75rem;
+}
+#chat-assistant-root .gap-4{
+    gap: 1rem;
+}
+#chat-assistant-root .gap-5{
+    gap: 1.25rem;
+}
+#chat-assistant-root .gap-6{
+    gap: 1.5rem;
+}
+#chat-assistant-root .gap-\[3px\]{
+    gap: 3px;
+}
+#chat-assistant-root .gap-\[5px\]{
+    gap: 5px;
+}
+#chat-assistant-root .gap-px{
+    gap: 1px;
+}
+#chat-assistant-root :is(.-space-x-0\.5 > :not([hidden]) ~ :not([hidden])){
+    --tw-space-x-reverse: 0;
+    margin-right: calc(-0.125rem * var(--tw-space-x-reverse));
+    margin-left: calc(-0.125rem * calc(1 - var(--tw-space-x-reverse)));
+}
+#chat-assistant-root :is(.space-y-1\.5 > :not([hidden]) ~ :not([hidden])){
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.375rem * var(--tw-space-y-reverse));
+}
+#chat-assistant-root :is(.space-y-2 > :not([hidden]) ~ :not([hidden])){
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
+}
+#chat-assistant-root :is(.space-y-3 > :not([hidden]) ~ :not([hidden])){
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
+}
+#chat-assistant-root .self-start{
+    align-self: flex-start;
+}
+#chat-assistant-root .self-end{
+    align-self: flex-end;
+}
+#chat-assistant-root .self-stretch{
+    align-self: stretch;
+}
+#chat-assistant-root .overflow-auto{
+    overflow: auto;
+}
+#chat-assistant-root .overflow-hidden{
+    overflow: hidden;
+}
+#chat-assistant-root .overflow-x-auto{
+    overflow-x: auto;
+}
+#chat-assistant-root .overflow-y-auto{
+    overflow-y: auto;
+}
+#chat-assistant-root .overflow-y-hidden{
+    overflow-y: hidden;
+}
+#chat-assistant-root .truncate{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#chat-assistant-root .whitespace-nowrap{
+    white-space: nowrap;
+}
+#chat-assistant-root .whitespace-pre-wrap{
+    white-space: pre-wrap;
+}
+#chat-assistant-root .break-words{
+    overflow-wrap: break-word;
+}
+#chat-assistant-root .break-all{
+    word-break: break-all;
+}
+#chat-assistant-root .rounded{
+    border-radius: var(--radius);
+}
+#chat-assistant-root .rounded-2xl{
+    border-radius: 16px;
+}
+#chat-assistant-root .rounded-\[14px\]{
+    border-radius: 14px;
+}
+#chat-assistant-root .rounded-\[3px\]{
+    border-radius: 3px;
+}
+#chat-assistant-root .rounded-\[calc\(var\(--border-radius\)-var\(--bezel-width\)\)\]{
+    border-radius: calc(var(--border-radius) - var(--bezel-width));
+}
+#chat-assistant-root .rounded-\[inherit\]{
+    border-radius: inherit;
+}
+#chat-assistant-root .rounded-\[var\(--border-radius\)\]{
+    border-radius: var(--border-radius);
+}
+#chat-assistant-root .rounded-full{
+    border-radius: 9999px;
+}
+#chat-assistant-root .rounded-lg{
+    border-radius: var(--radius);
+}
+#chat-assistant-root .rounded-md{
+    border-radius: calc(var(--radius) - 2px);
+}
+#chat-assistant-root .rounded-none{
+    border-radius: 0px;
+}
+#chat-assistant-root .rounded-sm{
+    border-radius: calc(var(--radius) - 4px);
+}
+#chat-assistant-root .rounded-xl{
+    border-radius: calc(var(--radius) + 2px);
+}
+#chat-assistant-root .rounded-xs{
+    border-radius: 4px;
+}
+#chat-assistant-root .rounded-r-md{
+    border-top-right-radius: calc(var(--radius) - 2px);
+    border-bottom-right-radius: calc(var(--radius) - 2px);
+}
+#chat-assistant-root .border{
+    border-width: 1px;
+}
+#chat-assistant-root .border-0{
+    border-width: 0px;
+}
+#chat-assistant-root .border-2{
+    border-width: 2px;
+}
+#chat-assistant-root .border-\[1\.5px\]{
+    border-width: 1.5px;
+}
+#chat-assistant-root .border-\[3px\]{
+    border-width: 3px;
+}
+#chat-assistant-root .border-b{
+    border-bottom-width: 1px;
+}
+#chat-assistant-root .border-b-2{
+    border-bottom-width: 2px;
+}
+#chat-assistant-root .border-l{
+    border-left-width: 1px;
+}
+#chat-assistant-root .border-l-\[3px\]{
+    border-left-width: 3px;
+}
+#chat-assistant-root .border-t{
+    border-top-width: 1px;
+}
+#chat-assistant-root .border-dashed{
+    border-style: dashed;
+}
+#chat-assistant-root .border-none{
+    border-style: none;
+}
+#chat-assistant-root .border-\[\#4f6dca\]{
+    --tw-border-opacity: 1;
+    border-color: rgb(79 109 202 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-\[rgba\(0\2c 0\2c 0\2c 0\.12\)\]{
+    border-color: rgba(0,0,0,0.12);
+}
+#chat-assistant-root .border-\[rgba\(139\2c 146\2c 163\2c 0\.15\)\]{
+    border-color: rgba(139,146,163,0.15);
+}
+#chat-assistant-root .border-\[rgba\(22\2c 163\2c 74\2c 0\.15\)\]{
+    border-color: rgba(22,163,74,0.15);
+}
+#chat-assistant-root .border-\[rgba\(22\2c 163\2c 74\2c 0\.2\)\]{
+    border-color: rgba(22,163,74,0.2);
+}
+#chat-assistant-root .border-\[rgba\(22\2c 163\2c 74\2c 0\.3\)\]{
+    border-color: rgba(22,163,74,0.3);
+}
+#chat-assistant-root .border-\[rgba\(245\2c 158\2c 11\2c 0\.5\)\]{
+    border-color: rgba(245,158,11,0.5);
+}
+#chat-assistant-root .border-\[rgba\(79\2c 109\2c 202\2c 0\.1\)\]{
+    border-color: rgba(79,109,202,0.1);
+}
+#chat-assistant-root .border-\[rgba\(79\2c 109\2c 202\2c 0\.12\)\]{
+    border-color: rgba(79,109,202,0.12);
+}
+#chat-assistant-root .border-\[rgba\(79\2c 109\2c 202\2c 0\.15\)\]{
+    border-color: rgba(79,109,202,0.15);
+}
+#chat-assistant-root .border-\[rgba\(99\2c 102\2c 241\2c 0\.25\)\]{
+    border-color: rgba(99,102,241,0.25);
+}
+#chat-assistant-root .border-black\/5{
+    border-color: rgb(0 0 0 / 0.05);
+}
+#chat-assistant-root .border-border{
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root .border-border-dark{
+    --tw-border-opacity: 1;
+    border-color: hsl(220 13% 80% / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-border\/40{
+    border-color: hsl(var(--border) / 0.4);
+}
+#chat-assistant-root .border-border\/50{
+    border-color: hsl(var(--border) / 0.5);
+}
+#chat-assistant-root .border-border\/60{
+    border-color: hsl(var(--border) / 0.6);
+}
+#chat-assistant-root .border-border\/70{
+    border-color: hsl(var(--border) / 0.7);
+}
+#chat-assistant-root .border-border\/80{
+    border-color: hsl(var(--border) / 0.8);
+}
+#chat-assistant-root .border-current{
+    border-color: currentColor;
+}
+#chat-assistant-root .border-danger{
+    --tw-border-opacity: 1;
+    border-color: rgb(239 68 68 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-danger\/30{
+    border-color: rgb(239 68 68 / 0.3);
+}
+#chat-assistant-root .border-destructive{
+    border-color: hsl(var(--destructive));
+}
+#chat-assistant-root .border-destructive\/20{
+    border-color: hsl(var(--destructive) / 0.2);
+}
+#chat-assistant-root .border-destructive\/30{
+    border-color: hsl(var(--destructive) / 0.3);
+}
+#chat-assistant-root .border-error-border{
+    --tw-border-opacity: 1;
+    border-color: rgb(254 202 202 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-muted-foreground\/30{
+    border-color: hsl(var(--muted-foreground) / 0.3);
+}
+#chat-assistant-root .border-muted-foreground\/40{
+    border-color: hsl(var(--muted-foreground) / 0.4);
+}
+#chat-assistant-root .border-primary{
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root .border-primary-foreground\/30{
+    border-color: hsl(var(--primary-foreground) / 0.3);
+}
+#chat-assistant-root .border-primary\/15{
+    border-color: hsl(var(--primary) / 0.15);
+}
+#chat-assistant-root .border-primary\/20{
+    border-color: hsl(var(--primary) / 0.2);
+}
+#chat-assistant-root .border-primary\/25{
+    border-color: hsl(var(--primary) / 0.25);
+}
+#chat-assistant-root .border-primary\/30{
+    border-color: hsl(var(--primary) / 0.3);
+}
+#chat-assistant-root .border-primary\/40{
+    border-color: hsl(var(--primary) / 0.4);
+}
+#chat-assistant-root .border-success\/30{
+    border-color: rgb(22 163 74 / 0.3);
+}
+#chat-assistant-root .border-surface{
+    border-color: hsl(var(--background));
+}
+#chat-assistant-root .border-transparent{
+    border-color: transparent;
+}
+#chat-assistant-root .border-warning-border{
+    --tw-border-opacity: 1;
+    border-color: rgb(245 158 11 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-warning-border\/20{
+    border-color: rgb(245 158 11 / 0.2);
+}
+#chat-assistant-root .border-warning-border\/30{
+    border-color: rgb(245 158 11 / 0.3);
+}
+#chat-assistant-root .border-white{
+    --tw-border-opacity: 1;
+    border-color: rgb(255 255 255 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-white\/30{
+    border-color: rgb(255 255 255 / 0.3);
+}
+#chat-assistant-root .border-white\/\[0\.08\]{
+    border-color: rgb(255 255 255 / 0.08);
+}
+#chat-assistant-root .border-white\/\[0\.12\]{
+    border-color: rgb(255 255 255 / 0.12);
+}
+#chat-assistant-root .border-white\/\[0\.15\]{
+    border-color: rgb(255 255 255 / 0.15);
+}
+#chat-assistant-root .border-l-transparent{
+    border-left-color: transparent;
+}
+#chat-assistant-root .border-l-warning-border{
+    --tw-border-opacity: 1;
+    border-left-color: rgb(245 158 11 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .border-r-transparent{
+    border-right-color: transparent;
+}
+#chat-assistant-root .border-t-brand{
+    border-top-color: hsl(var(--primary));
+}
+#chat-assistant-root .border-t-primary{
+    border-top-color: hsl(var(--primary));
+}
+#chat-assistant-root .border-t-primary-foreground{
+    border-top-color: hsl(var(--primary-foreground));
+}
+#chat-assistant-root .border-t-transparent{
+    border-top-color: transparent;
+}
+#chat-assistant-root .border-t-white{
+    --tw-border-opacity: 1;
+    border-top-color: rgb(255 255 255 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#111827\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(17 24 39 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#1f2937\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#2a2a2a\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(42 42 42 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#2d2d2d\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(45 45 45 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#3a3a3a\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(58 58 58 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#4f6dca\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(79 109 202 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#555\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(85 85 85 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#dfe2e9\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(223 226 233 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#eff6ff\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#f1f3f7\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(241 243 247 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#f5f5f5\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(245 245 245 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[\#f9fafb\]{
+    --tw-bg-opacity: 1;
+    background-color: rgb(249 250 251 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[hsl\(222_47\%_11\%\)\]{
+    --tw-bg-opacity: 1;
+    background-color: hsl(222 47% 11% / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-\[rgba\(139\2c 146\2c 163\2c 0\.06\)\]{
+    background-color: rgba(139,146,163,0.06);
+}
+#chat-assistant-root .bg-\[rgba\(22\2c 163\2c 74\2c 0\.06\)\]{
+    background-color: rgba(22,163,74,0.06);
+}
+#chat-assistant-root .bg-\[rgba\(22\2c 163\2c 74\2c 0\.08\)\]{
+    background-color: rgba(22,163,74,0.08);
+}
+#chat-assistant-root .bg-\[rgba\(22\2c 163\2c 74\2c 0\.1\)\]{
+    background-color: rgba(22,163,74,0.1);
+}
+#chat-assistant-root .bg-\[rgba\(22\2c 163\2c 74\2c 0\.12\)\]{
+    background-color: rgba(22,163,74,0.12);
+}
+#chat-assistant-root .bg-\[rgba\(220\2c 38\2c 38\2c 0\.9\)\]{
+    background-color: rgba(220,38,38,0.9);
+}
+#chat-assistant-root .bg-\[rgba\(239\2c 68\2c 68\2c 0\.1\)\]{
+    background-color: rgba(239,68,68,0.1);
+}
+#chat-assistant-root .bg-\[rgba\(249\2c 250\2c 251\2c 0\.95\)\]{
+    background-color: rgba(249,250,251,0.95);
+}
+#chat-assistant-root .bg-\[rgba\(79\2c 109\2c 202\2c 0\.04\)\]{
+    background-color: rgba(79,109,202,0.04);
+}
+#chat-assistant-root .bg-\[rgba\(79\2c 109\2c 202\2c 0\.06\)\]{
+    background-color: rgba(79,109,202,0.06);
+}
+#chat-assistant-root .bg-\[rgba\(79\2c 109\2c 202\2c 0\.08\)\]{
+    background-color: rgba(79,109,202,0.08);
+}
+#chat-assistant-root .bg-\[rgba\(79\2c 109\2c 202\2c 0\.12\)\]{
+    background-color: rgba(79,109,202,0.12);
+}
+#chat-assistant-root .bg-\[rgba\(99\2c 102\2c 241\2c 0\.1\)\]{
+    background-color: rgba(99,102,241,0.1);
+}
+#chat-assistant-root .bg-accent{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .bg-background{
+    background-color: hsl(var(--background));
+}
+#chat-assistant-root .bg-background\/60{
+    background-color: hsl(var(--background) / 0.6);
+}
+#chat-assistant-root .bg-background\/80{
+    background-color: hsl(var(--background) / 0.8);
+}
+#chat-assistant-root .bg-background\/90{
+    background-color: hsl(var(--background) / 0.9);
+}
+#chat-assistant-root .bg-black{
+    --tw-bg-opacity: 1;
+    background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-border{
+    background-color: hsl(var(--border));
+}
+#chat-assistant-root .bg-border-dark{
+    --tw-bg-opacity: 1;
+    background-color: hsl(220 13% 80% / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-border-light{
+    background-color: hsl(var(--border));
+}
+#chat-assistant-root .bg-brand{
+    background-color: hsl(var(--primary));
+}
+#chat-assistant-root .bg-brand\/\[0\.08\]{
+    background-color: hsl(var(--primary) / 0.08);
+}
+#chat-assistant-root .bg-card{
+    background-color: hsl(var(--card));
+}
+#chat-assistant-root .bg-danger{
+    --tw-bg-opacity: 1;
+    background-color: rgb(239 68 68 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-destructive\/10{
+    background-color: hsl(var(--destructive) / 0.1);
+}
+#chat-assistant-root .bg-destructive\/\[0\.03\]{
+    background-color: hsl(var(--destructive) / 0.03);
+}
+#chat-assistant-root .bg-error-bg{
+    --tw-bg-opacity: 1;
+    background-color: rgb(254 242 242 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-gray-50{
+    --tw-bg-opacity: 1;
+    background-color: rgb(249 250 251 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-heading{
+    background-color: hsl(var(--foreground));
+}
+#chat-assistant-root .bg-muted{
+    background-color: hsl(var(--muted));
+}
+#chat-assistant-root .bg-muted\/30{
+    background-color: hsl(var(--muted) / 0.3);
+}
+#chat-assistant-root .bg-muted\/50{
+    background-color: hsl(var(--muted) / 0.5);
+}
+#chat-assistant-root .bg-muted\/60{
+    background-color: hsl(var(--muted) / 0.6);
+}
+#chat-assistant-root .bg-muted\/70{
+    background-color: hsl(var(--muted) / 0.7);
+}
+#chat-assistant-root .bg-popover{
+    background-color: hsl(var(--popover));
+}
+#chat-assistant-root .bg-primary{
+    background-color: hsl(var(--primary));
+}
+#chat-assistant-root .bg-primary\/10{
+    background-color: hsl(var(--primary) / 0.1);
+}
+#chat-assistant-root .bg-primary\/5{
+    background-color: hsl(var(--primary) / 0.05);
+}
+#chat-assistant-root .bg-primary\/50{
+    background-color: hsl(var(--primary) / 0.5);
+}
+#chat-assistant-root .bg-primary\/60{
+    background-color: hsl(var(--primary) / 0.6);
+}
+#chat-assistant-root .bg-primary\/\[0\.02\]{
+    background-color: hsl(var(--primary) / 0.02);
+}
+#chat-assistant-root .bg-primary\/\[0\.04\]{
+    background-color: hsl(var(--primary) / 0.04);
+}
+#chat-assistant-root .bg-primary\/\[0\.06\]{
+    background-color: hsl(var(--primary) / 0.06);
+}
+#chat-assistant-root .bg-primary\/\[0\.07\]{
+    background-color: hsl(var(--primary) / 0.07);
+}
+#chat-assistant-root .bg-secondary{
+    background-color: hsl(var(--secondary));
+}
+#chat-assistant-root .bg-success{
+    --tw-bg-opacity: 1;
+    background-color: rgb(22 163 74 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-success\/10{
+    background-color: rgb(22 163 74 / 0.1);
+}
+#chat-assistant-root .bg-surface{
+    background-color: hsl(var(--background));
+}
+#chat-assistant-root .bg-surface-blue{
+    background-color: hsl(var(--primary) / 0.12);
+}
+#chat-assistant-root .bg-surface-hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .bg-surface-secondary{
+    background-color: hsl(var(--muted));
+}
+#chat-assistant-root .bg-surface\/85{
+    background-color: hsl(var(--background) / 0.85);
+}
+#chat-assistant-root .bg-transparent{
+    background-color: transparent;
+}
+#chat-assistant-root .bg-warning-bg{
+    --tw-bg-opacity: 1;
+    background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-warning-bg\/50{
+    background-color: rgb(254 243 199 / 0.5);
+}
+#chat-assistant-root .bg-warning-border{
+    --tw-bg-opacity: 1;
+    background-color: rgb(245 158 11 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-white{
+    --tw-bg-opacity: 1;
+    background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .bg-white\/25{
+    background-color: rgb(255 255 255 / 0.25);
+}
+#chat-assistant-root .bg-white\/85{
+    background-color: rgb(255 255 255 / 0.85);
+}
+#chat-assistant-root .bg-\[repeating-conic-gradient\(\#808080_0\%_25\%\2c transparent_0\%_50\%\)\]{
+    background-image: repeating-conic-gradient(#808080 0% 25%,transparent 0% 50%);
+}
+#chat-assistant-root .bg-gradient-to-b{
+    background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+}
+#chat-assistant-root .bg-gradient-to-r{
+    background-image: linear-gradient(to right, var(--tw-gradient-stops));
+}
+#chat-assistant-root .bg-none{
+    background-image: none;
+}
+#chat-assistant-root .from-background\/80{
+    --tw-gradient-from: hsl(var(--background) / 0.8) var(--tw-gradient-from-position);
+    --tw-gradient-to: hsl(var(--background) / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+#chat-assistant-root .from-destructive{
+    --tw-gradient-from: hsl(var(--destructive)) var(--tw-gradient-from-position);
+    --tw-gradient-to: hsl(var(--destructive) / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+#chat-assistant-root .from-success{
+    --tw-gradient-from: #16a34a var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(22 163 74 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+#chat-assistant-root .from-warning-border{
+    --tw-gradient-from: #f59e0b var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(245 158 11 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+#chat-assistant-root .to-destructive{
+    --tw-gradient-to: hsl(var(--destructive)) var(--tw-gradient-to-position);
+}
+#chat-assistant-root .to-success-bright{
+    --tw-gradient-to: #22c55e var(--tw-gradient-to-position);
+}
+#chat-assistant-root .to-transparent{
+    --tw-gradient-to: transparent var(--tw-gradient-to-position);
+}
+#chat-assistant-root .to-warning-border{
+    --tw-gradient-to: #f59e0b var(--tw-gradient-to-position);
+}
+#chat-assistant-root .bg-\[length\:6px_6px\]{
+    background-size: 6px 6px;
+}
+#chat-assistant-root .fill-current{
+    fill: currentColor;
+}
+#chat-assistant-root .object-cover{
+    -o-object-fit: cover;
+       object-fit: cover;
+}
+#chat-assistant-root .p-0{
+    padding: 0px;
+}
+#chat-assistant-root .p-0\.5{
+    padding: 0.125rem;
+}
+#chat-assistant-root .p-1{
+    padding: 0.25rem;
+}
+#chat-assistant-root .p-1\.5{
+    padding: 0.375rem;
+}
+#chat-assistant-root .p-2{
+    padding: 0.5rem;
+}
+#chat-assistant-root .p-2\.5{
+    padding: 0.625rem;
+}
+#chat-assistant-root .p-3{
+    padding: 0.75rem;
+}
+#chat-assistant-root .p-4{
+    padding: 1rem;
+}
+#chat-assistant-root .p-5{
+    padding: 1.25rem;
+}
+#chat-assistant-root .p-6{
+    padding: 1.5rem;
+}
+#chat-assistant-root .p-\[1px\]{
+    padding: 1px;
+}
+#chat-assistant-root .p-\[5px\]{
+    padding: 5px;
+}
+#chat-assistant-root .p-\[var\(--bezel-width\)\]{
+    padding: var(--bezel-width);
+}
+#chat-assistant-root .px-0{
+    padding-left: 0px;
+    padding-right: 0px;
+}
+#chat-assistant-root .px-0\.5{
+    padding-left: 0.125rem;
+    padding-right: 0.125rem;
+}
+#chat-assistant-root .px-1{
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+#chat-assistant-root .px-1\.5{
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+}
+#chat-assistant-root .px-2{
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+#chat-assistant-root .px-2\.5{
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+}
+#chat-assistant-root .px-3{
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+#chat-assistant-root .px-3\.5{
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+}
+#chat-assistant-root .px-4{
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+#chat-assistant-root .px-5{
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+#chat-assistant-root .px-6{
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+#chat-assistant-root .px-8{
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+#chat-assistant-root .px-\[5px\]{
+    padding-left: 5px;
+    padding-right: 5px;
+}
+#chat-assistant-root .py-0{
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+#chat-assistant-root .py-0\.5{
+    padding-top: 0.125rem;
+    padding-bottom: 0.125rem;
+}
+#chat-assistant-root .py-1{
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+#chat-assistant-root .py-1\.5{
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+}
+#chat-assistant-root .py-10{
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+}
+#chat-assistant-root .py-12{
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+}
+#chat-assistant-root .py-16{
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+}
+#chat-assistant-root .py-2{
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+#chat-assistant-root .py-2\.5{
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+}
+#chat-assistant-root .py-3{
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+#chat-assistant-root .py-4{
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+#chat-assistant-root .py-5{
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+}
+#chat-assistant-root .py-6{
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+#chat-assistant-root .py-8{
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+#chat-assistant-root .py-\[2px\]{
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+#chat-assistant-root .py-\[3px\]{
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+#chat-assistant-root .py-\[5px\]{
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+#chat-assistant-root .py-px{
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+#chat-assistant-root .pb-0{
+    padding-bottom: 0px;
+}
+#chat-assistant-root .pb-1{
+    padding-bottom: 0.25rem;
+}
+#chat-assistant-root .pb-1\.5{
+    padding-bottom: 0.375rem;
+}
+#chat-assistant-root .pb-2{
+    padding-bottom: 0.5rem;
+}
+#chat-assistant-root .pb-3{
+    padding-bottom: 0.75rem;
+}
+#chat-assistant-root .pb-4{
+    padding-bottom: 1rem;
+}
+#chat-assistant-root .pb-5{
+    padding-bottom: 1.25rem;
+}
+#chat-assistant-root .pb-6{
+    padding-bottom: 1.5rem;
+}
+#chat-assistant-root .pl-0{
+    padding-left: 0px;
+}
+#chat-assistant-root .pl-2{
+    padding-left: 0.5rem;
+}
+#chat-assistant-root .pl-4{
+    padding-left: 1rem;
+}
+#chat-assistant-root .pl-5{
+    padding-left: 1.25rem;
+}
+#chat-assistant-root .pl-8{
+    padding-left: 2rem;
+}
+#chat-assistant-root .pr-1{
+    padding-right: 0.25rem;
+}
+#chat-assistant-root .pr-1\.5{
+    padding-right: 0.375rem;
+}
+#chat-assistant-root .pr-2{
+    padding-right: 0.5rem;
+}
+#chat-assistant-root .pr-3{
+    padding-right: 0.75rem;
+}
+#chat-assistant-root .pr-4{
+    padding-right: 1rem;
+}
+#chat-assistant-root .pt-0{
+    padding-top: 0px;
+}
+#chat-assistant-root .pt-0\.5{
+    padding-top: 0.125rem;
+}
+#chat-assistant-root .pt-1{
+    padding-top: 0.25rem;
+}
+#chat-assistant-root .pt-1\.5{
+    padding-top: 0.375rem;
+}
+#chat-assistant-root .pt-2{
+    padding-top: 0.5rem;
+}
+#chat-assistant-root .pt-3{
+    padding-top: 0.75rem;
+}
+#chat-assistant-root .pt-4{
+    padding-top: 1rem;
+}
+#chat-assistant-root .pt-5{
+    padding-top: 1.25rem;
+}
+#chat-assistant-root .text-left{
+    text-align: left;
+}
+#chat-assistant-root .text-center{
+    text-align: center;
+}
+#chat-assistant-root .text-right{
+    text-align: right;
+}
+#chat-assistant-root .align-top{
+    vertical-align: top;
+}
+#chat-assistant-root .align-middle{
+    vertical-align: middle;
+}
+#chat-assistant-root .font-\[inherit\]{
+    font-family: inherit;
+}
+#chat-assistant-root .font-mono{
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+#chat-assistant-root .font-sans{
+    font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#chat-assistant-root .text-2xl{
+    font-size: 24px;
+    line-height: 32px;
+}
+#chat-assistant-root .text-2xs{
+    font-size: 10px;
+    line-height: 14px;
+}
+#chat-assistant-root .text-3xl{
+    font-size: 30px;
+    line-height: 36px;
+}
+#chat-assistant-root .text-\[0\.9em\]{
+    font-size: 0.9em;
+}
+#chat-assistant-root .text-\[10px\]{
+    font-size: 10px;
+}
+#chat-assistant-root .text-\[11px\]{
+    font-size: 11px;
+}
+#chat-assistant-root .text-\[12px\]{
+    font-size: 12px;
+}
+#chat-assistant-root .text-\[13px\]{
+    font-size: 13px;
+}
+#chat-assistant-root .text-\[14px\]{
+    font-size: 14px;
+}
+#chat-assistant-root .text-base{
+    font-size: 16px;
+    line-height: 24px;
+}
+#chat-assistant-root .text-lg{
+    font-size: 18px;
+    line-height: 28px;
+}
+#chat-assistant-root .text-md{
+    font-size: 15px;
+    line-height: 22px;
+}
+#chat-assistant-root .text-sm{
+    font-size: 14px;
+    line-height: 20px;
+}
+#chat-assistant-root .text-xl{
+    font-size: 20px;
+    line-height: 28px;
+}
+#chat-assistant-root .text-xs{
+    font-size: 12px;
+    line-height: 16px;
+}
+#chat-assistant-root .font-bold{
+    font-weight: 700;
+}
+#chat-assistant-root .font-medium{
+    font-weight: 500;
+}
+#chat-assistant-root .font-semibold{
+    font-weight: 600;
+}
+#chat-assistant-root .uppercase{
+    text-transform: uppercase;
+}
+#chat-assistant-root .capitalize{
+    text-transform: capitalize;
+}
+#chat-assistant-root .italic{
+    font-style: italic;
+}
+#chat-assistant-root .tabular-nums{
+    --tw-numeric-spacing: tabular-nums;
+    font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
+}
+#chat-assistant-root .leading-5{
+    line-height: 1.25rem;
+}
+#chat-assistant-root .leading-6{
+    line-height: 1.5rem;
+}
+#chat-assistant-root .leading-\[1\.2\]{
+    line-height: 1.2;
+}
+#chat-assistant-root .leading-\[1\.3\]{
+    line-height: 1.3;
+}
+#chat-assistant-root .leading-\[1\.45\]{
+    line-height: 1.45;
+}
+#chat-assistant-root .leading-\[1\.4\]{
+    line-height: 1.4;
+}
+#chat-assistant-root .leading-\[1\.55\]{
+    line-height: 1.55;
+}
+#chat-assistant-root .leading-\[1\.65\]{
+    line-height: 1.65;
+}
+#chat-assistant-root .leading-\[1\.6\]{
+    line-height: 1.6;
+}
+#chat-assistant-root .leading-\[1\.75\]{
+    line-height: 1.75;
+}
+#chat-assistant-root .leading-\[1\.7\]{
+    line-height: 1.7;
+}
+#chat-assistant-root .leading-\[14px\]{
+    line-height: 14px;
+}
+#chat-assistant-root .leading-none{
+    line-height: 1;
+}
+#chat-assistant-root .leading-normal{
+    line-height: 1.5;
+}
+#chat-assistant-root .leading-relaxed{
+    line-height: 1.625;
+}
+#chat-assistant-root .leading-snug{
+    line-height: 1.375;
+}
+#chat-assistant-root .leading-tight{
+    line-height: 1.25;
+}
+#chat-assistant-root .tracking-\[-0\.005em\]{
+    letter-spacing: -0.005em;
+}
+#chat-assistant-root .tracking-\[-0\.01em\]{
+    letter-spacing: -0.01em;
+}
+#chat-assistant-root .tracking-\[-0\.02em\]{
+    letter-spacing: -0.02em;
+}
+#chat-assistant-root .tracking-\[0\.02em\]{
+    letter-spacing: 0.02em;
+}
+#chat-assistant-root .tracking-\[0\.05em\]{
+    letter-spacing: 0.05em;
+}
+#chat-assistant-root .tracking-\[0\.08em\]{
+    letter-spacing: 0.08em;
+}
+#chat-assistant-root .tracking-\[0\.4px\]{
+    letter-spacing: 0.4px;
+}
+#chat-assistant-root .tracking-\[0\.5px\]{
+    letter-spacing: 0.5px;
+}
+#chat-assistant-root .tracking-\[0\.6px\]{
+    letter-spacing: 0.6px;
+}
+#chat-assistant-root .tracking-tight{
+    letter-spacing: -0.025em;
+}
+#chat-assistant-root .tracking-wide{
+    letter-spacing: 0.025em;
+}
+#chat-assistant-root .tracking-wider{
+    letter-spacing: 0.05em;
+}
+#chat-assistant-root .tracking-widest{
+    letter-spacing: 0.1em;
+}
+#chat-assistant-root .text-\[\#1e2330\]{
+    --tw-text-opacity: 1;
+    color: rgb(30 35 48 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[\#4f6dca\]{
+    --tw-text-opacity: 1;
+    color: rgb(79 109 202 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[\#5c6478\]{
+    --tw-text-opacity: 1;
+    color: rgb(92 100 120 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[\#6366f1\]{
+    --tw-text-opacity: 1;
+    color: rgb(99 102 241 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[\#8b92a3\]{
+    --tw-text-opacity: 1;
+    color: rgb(139 146 163 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[\#dc2626\]{
+    --tw-text-opacity: 1;
+    color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-\[hsl\(210_20\%_98\%\)\]{
+    --tw-text-opacity: 1;
+    color: hsl(210 20% 98% / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-body{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .text-brand{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .text-brand-dark{
+    --tw-text-opacity: 1;
+    color: hsl(262.1 83.3% 44% / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-card-foreground{
+    color: hsl(var(--card-foreground));
+}
+#chat-assistant-root .text-danger{
+    --tw-text-opacity: 1;
+    color: rgb(239 68 68 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-destructive{
+    color: hsl(var(--destructive));
+}
+#chat-assistant-root .text-error-text{
+    --tw-text-opacity: 1;
+    color: rgb(153 27 27 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-faint{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .text-foreground{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .text-foreground\/70{
+    color: hsl(var(--foreground) / 0.7);
+}
+#chat-assistant-root .text-foreground\/80{
+    color: hsl(var(--foreground) / 0.8);
+}
+#chat-assistant-root .text-foreground\/90{
+    color: hsl(var(--foreground) / 0.9);
+}
+#chat-assistant-root .text-green-500{
+    --tw-text-opacity: 1;
+    color: rgb(34 197 94 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-heading{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .text-inherit{
+    color: inherit;
+}
+#chat-assistant-root .text-medium{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .text-muted-foreground{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .text-muted-foreground\/30{
+    color: hsl(var(--muted-foreground) / 0.3);
+}
+#chat-assistant-root .text-muted-foreground\/40{
+    color: hsl(var(--muted-foreground) / 0.4);
+}
+#chat-assistant-root .text-muted-foreground\/50{
+    color: hsl(var(--muted-foreground) / 0.5);
+}
+#chat-assistant-root .text-muted-foreground\/60{
+    color: hsl(var(--muted-foreground) / 0.6);
+}
+#chat-assistant-root .text-muted-foreground\/70{
+    color: hsl(var(--muted-foreground) / 0.7);
+}
+#chat-assistant-root .text-popover-foreground{
+    color: hsl(var(--popover-foreground));
+}
+#chat-assistant-root .text-primary{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .text-primary-foreground{
+    color: hsl(var(--primary-foreground));
+}
+#chat-assistant-root .text-primary\/50{
+    color: hsl(var(--primary) / 0.5);
+}
+#chat-assistant-root .text-primary\/70{
+    color: hsl(var(--primary) / 0.7);
+}
+#chat-assistant-root .text-red-500{
+    --tw-text-opacity: 1;
+    color: rgb(239 68 68 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-success{
+    --tw-text-opacity: 1;
+    color: rgb(22 163 74 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-warning-text{
+    --tw-text-opacity: 1;
+    color: rgb(146 64 14 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-warning-text\/80{
+    color: rgb(146 64 14 / 0.8);
+}
+#chat-assistant-root .text-white{
+    --tw-text-opacity: 1;
+    color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .text-white\/70{
+    color: rgb(255 255 255 / 0.7);
+}
+#chat-assistant-root .text-white\/80{
+    color: rgb(255 255 255 / 0.8);
+}
+#chat-assistant-root .text-white\/90{
+    color: rgb(255 255 255 / 0.9);
+}
+#chat-assistant-root .underline{
+    text-decoration-line: underline;
+}
+#chat-assistant-root .line-through{
+    text-decoration-line: line-through;
+}
+#chat-assistant-root .no-underline{
+    text-decoration-line: none;
+}
+#chat-assistant-root .decoration-primary\/35{
+    text-decoration-color: hsl(var(--primary) / 0.35);
+}
+#chat-assistant-root .decoration-1{
+    text-decoration-thickness: 1px;
+}
+#chat-assistant-root .underline-offset-2{
+    text-underline-offset: 2px;
+}
+#chat-assistant-root .underline-offset-4{
+    text-underline-offset: 4px;
+}
+#chat-assistant-root .accent-primary{
+    accent-color: hsl(var(--primary));
+}
+#chat-assistant-root .opacity-0{
+    opacity: 0;
+}
+#chat-assistant-root .opacity-100{
+    opacity: 1;
+}
+#chat-assistant-root .opacity-30{
+    opacity: 0.3;
+}
+#chat-assistant-root .opacity-40{
+    opacity: 0.4;
+}
+#chat-assistant-root .opacity-50{
+    opacity: 0.5;
+}
+#chat-assistant-root .opacity-60{
+    opacity: 0.6;
+}
+#chat-assistant-root .opacity-65{
+    opacity: 0.65;
+}
+#chat-assistant-root .opacity-70{
+    opacity: 0.7;
+}
+#chat-assistant-root .opacity-80{
+    opacity: 0.8;
+}
+#chat-assistant-root .opacity-90{
+    opacity: 0.9;
+}
+#chat-assistant-root .opacity-95{
+    opacity: 0.95;
+}
+#chat-assistant-root .shadow-\[0_0_0_1px_rgba\(79\2c 109\2c 202\2c 0\.15\)\]{
+    --tw-shadow: 0 0 0 1px rgba(79,109,202,0.15);
+    --tw-shadow-colored: 0 0 0 1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_2px_8px_rgba\(0\2c 0\2c 0\2c 0\.10\)\]{
+    --tw-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    --tw-shadow-colored: 0 2px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_4px_16px_rgba\(0\2c 0\2c 0\2c 0\.12\)\2c 0_2px_6px_rgba\(0\2c 0\2c 0\2c 0\.06\)\]{
+    --tw-shadow: 0 4px 16px rgba(0,0,0,0.12),0 2px 6px rgba(0,0,0,0.06);
+    --tw-shadow-colored: 0 4px 16px var(--tw-shadow-color), 0 2px 6px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_4px_16px_rgba\(0\2c 0\2c 0\2c 0\.3\)\2c 0_1px_4px_rgba\(0\2c 0\2c 0\2c 0\.2\)\]{
+    --tw-shadow: 0 4px 16px rgba(0,0,0,0.3),0 1px 4px rgba(0,0,0,0.2);
+    --tw-shadow-colored: 0 4px 16px var(--tw-shadow-color), 0 1px 4px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_4px_20px_rgba\(0\2c 0\2c 0\2c 0\.1\)\2c 0_1px_4px_rgba\(0\2c 0\2c 0\2c 0\.06\)\]{
+    --tw-shadow: 0 4px 20px rgba(0,0,0,0.1),0 1px 4px rgba(0,0,0,0.06);
+    --tw-shadow-colored: 0 4px 20px var(--tw-shadow-color), 0 1px 4px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_8px_24px_rgba\(15\2c 23\2c 42\2c 0\.1\)\]{
+    --tw-shadow: 0 8px 24px rgba(15,23,42,0.1);
+    --tw-shadow-colored: 0 8px 24px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_8px_32px_rgba\(0\2c 0\2c 0\2c 0\.15\)\2c 0_2px_8px_rgba\(0\2c 0\2c 0\2c 0\.08\)\]{
+    --tw-shadow: 0 8px 32px rgba(0,0,0,0.15),0 2px 8px rgba(0,0,0,0.08);
+    --tw-shadow-colored: 0 8px 32px var(--tw-shadow-color), 0 2px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[0_8px_32px_rgba\(0\2c 0\2c 0\2c 0\.35\)\2c 0_2px_8px_rgba\(0\2c 0\2c 0\2c 0\.2\)\]{
+    --tw-shadow: 0 8px 32px rgba(0,0,0,0.35),0 2px 8px rgba(0,0,0,0.2);
+    --tw-shadow-colored: 0 8px 32px var(--tw-shadow-color), 0 2px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[inset_0_0_0_1px_hsl\(var\(--border\)\)\]{
+    --tw-shadow: inset 0 0 0 1px hsl(var(--border));
+    --tw-shadow-colored: inset 0 0 0 1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[inset_0_0_0_1px_rgba\(0\2c 0\2c 0\2c 0\.08\)\2c 0_1px_3px_rgba\(0\2c 0\2c 0\2c 0\.08\)\]{
+    --tw-shadow: inset 0 0 0 1px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.08);
+    --tw-shadow-colored: inset 0 0 0 1px var(--tw-shadow-color), 0 1px 3px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[inset_0_0_2px_rgba\(0\2c 0\2c 0\2c 0\.04\)\]{
+    --tw-shadow: inset 0 0 2px rgba(0,0,0,0.04);
+    --tw-shadow-colored: inset 0 0 2px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-\[inset_0_0_2px_rgba\(0\2c 0\2c 0\2c 0\.06\)\]{
+    --tw-shadow: inset 0 0 2px rgba(0,0,0,0.06);
+    --tw-shadow-colored: inset 0 0 2px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-lg{
+    --tw-shadow: 0 4px 16px -4px hsl(var(--foreground) / 0.10), 0 2px 6px -2px hsl(var(--foreground) / 0.04);
+    --tw-shadow-colored: 0 4px 16px -4px var(--tw-shadow-color), 0 2px 6px -2px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-md{
+    --tw-shadow: 0 2px 8px -2px hsl(var(--foreground) / 0.08), 0 1px 3px hsl(var(--foreground) / 0.04);
+    --tw-shadow-colored: 0 2px 8px -2px var(--tw-shadow-color), 0 1px 3px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-none{
+    --tw-shadow: 0 0 #0000;
+    --tw-shadow-colored: 0 0 #0000;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-sm{
+    --tw-shadow: 0 1px 3px hsl(var(--foreground) / 0.04), 0 1px 2px hsl(var(--foreground) / 0.02);
+    --tw-shadow-colored: 0 1px 3px var(--tw-shadow-color), 0 1px 2px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .shadow-xl{
+    --tw-shadow: 0 8px 30px -6px hsl(var(--foreground) / 0.12), 0 4px 10px -4px hsl(var(--foreground) / 0.04);
+    --tw-shadow-colored: 0 8px 30px -6px var(--tw-shadow-color), 0 4px 10px -4px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .outline-none{
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+#chat-assistant-root .outline{
+    outline-style: solid;
+}
+#chat-assistant-root .outline-2{
+    outline-width: 2px;
+}
+#chat-assistant-root .outline-offset-\[-2px\]{
+    outline-offset: -2px;
+}
+#chat-assistant-root .outline-\[rgba\(79\2c 109\2c 202\2c 0\.5\)\]{
+    outline-color: rgba(79,109,202,0.5);
+}
+#chat-assistant-root .outline-transparent{
+    outline-color: transparent;
+}
+#chat-assistant-root .ring-0{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .ring-1{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .ring-2{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .ring-danger\/25{
+    --tw-ring-color: rgb(239 68 68 / 0.25);
+}
+#chat-assistant-root .ring-transparent{
+    --tw-ring-color: transparent;
+}
+#chat-assistant-root .ring-offset-background{
+    --tw-ring-offset-color: hsl(var(--background));
+}
+#chat-assistant-root .blur{
+    --tw-blur: blur(8px);
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+#chat-assistant-root .filter{
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+#chat-assistant-root .backdrop-blur-\[16px\]{
+    --tw-backdrop-blur: blur(16px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+#chat-assistant-root .backdrop-blur-\[2px\]{
+    --tw-backdrop-blur: blur(2px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+#chat-assistant-root .backdrop-blur-\[6px\]{
+    --tw-backdrop-blur: blur(6px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+#chat-assistant-root .backdrop-blur-\[8px\]{
+    --tw-backdrop-blur: blur(8px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+#chat-assistant-root .backdrop-blur-sm{
+    --tw-backdrop-blur: blur(4px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+#chat-assistant-root .transition{
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[background\2c box-shadow\]{
+    transition-property: background,box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[background\]{
+    transition-property: background;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[border-color\2c background\2c box-shadow\]{
+    transition-property: border-color,background,box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[border-color\2c box-shadow\]{
+    transition-property: border-color,box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[border-color\]{
+    transition-property: border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[color\2c background\2c border-color\]{
+    transition-property: color,background,border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[color\2c background\]{
+    transition-property: color,background;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[opacity\2c background\]{
+    transition-property: opacity,background;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[opacity\2c visibility\]{
+    transition-property: opacity,visibility;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[outline-color\]{
+    transition-property: outline-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[transform\2c flex\]{
+    transition-property: transform,flex;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[transform\]{
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-\[width\]{
+    transition-property: width;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-all{
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-colors{
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-none{
+    transition-property: none;
+}
+#chat-assistant-root .transition-opacity{
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .transition-transform{
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root .duration-100{
+    transition-duration: 100ms;
+}
+#chat-assistant-root .duration-150{
+    transition-duration: 150ms;
+}
+#chat-assistant-root .duration-200{
+    transition-duration: 200ms;
+}
+#chat-assistant-root .duration-300{
+    transition-duration: 300ms;
+}
+#chat-assistant-root .duration-500{
+    transition-duration: 500ms;
+}
+#chat-assistant-root .ease-in{
+    transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+#chat-assistant-root .ease-in-out{
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+#chat-assistant-root .ease-out{
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+#chat-assistant-root .will-change-transform{
+    will-change: transform;
+}
+#chat-assistant-root .\[-webkit-backdrop-filter\:blur\(16px\)\]{
+    -webkit-backdrop-filter: blur(16px);
+}
+#chat-assistant-root .\[animation-delay\:0ms\]{
+    animation-delay: 0ms;
+}
+#chat-assistant-root .\[animation-delay\:100ms\]{
+    animation-delay: 100ms;
+}
+#chat-assistant-root .\[animation-delay\:200ms\]{
+    animation-delay: 200ms;
+}
+#chat-assistant-root .\[border\:none\]{
+    border: none;
+}
+#chat-assistant-root .\[box-shadow\:none\]{
+    box-shadow: none;
+}
+#chat-assistant-root .\[outline\:none\]{
+    outline: none;
+}
+
+/* ── Spectra-style purple theme (shadcn HSL tokens) + legacy aliases ── */
+
+#chat-assistant-root [data-message-list] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+}
+
+/* ── Keyframe animations (minimal) ── */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Spinner classes ── */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-tiny {
+  width: 12px;
+  height: 12px;
+  border: 2px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Scoped base styles (inside #chat-assistant-root only) ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Root container reset ── */
+#chat-assistant-root {
+  /* Isolate from WP admin styles without using `all: initial`
+     which breaks Tailwind utility specificity on child elements */
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: hsl(var(--background));
+  font-family:
+    "Figtree",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: hsl(var(--foreground));
+  box-sizing: border-box;
+  /* Reset common inherited WP admin styles */
+  text-align: left;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-transform: none;
+  text-indent: 0;
+  text-decoration: none;
+  direction: ltr;
+
+  /* Scoped preflight — replaces @import "tailwindcss/preflight" which leaks globally.
+     Uses :where() for zero specificity so Tailwind utility classes always win. */
+  & :where(*),
+  & :where(::before, ::after) {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+
+  & :where(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+  }
+
+  & :where(a) {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  & :where(img, svg, video, canvas) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  & :where(button) {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+  }
+
+  & :where(input, textarea, select) {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    background: transparent;
+  }
+
+  & :where(ul, ol) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  & :where(table) {
+    border-collapse: collapse;
+  }
+}
+
+/* ── Tooltip system (data-attribute based, needs global CSS) ── */
+[data-tooltip] {
+  position: relative;
+
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    padding: 5px 10px;
+    background: hsl(222 47% 11%);
+    color: hsl(210 20% 98%);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    pointer-events: none;
+    opacity: 0;
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+    z-index: 100001;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    border: 5px solid transparent;
+    border-top-color: hsl(222 47% 11%);
+    pointer-events: none;
+    opacity: 0;
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+    z-index: 100001;
+  }
+
+  &:hover::after,
+  &:hover::before {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+[data-tooltip-pos="below"] {
+  &::after {
+    bottom: auto;
+    top: calc(100% + 8px);
+  }
+  &::before {
+    bottom: auto;
+    top: calc(100% + -2px);
+    border-top-color: transparent;
+    border-bottom-color: var(--color-heading);
+  }
+}
+
+[data-tooltip-pos="left"] {
+  &::after {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: calc(100% + 10px);
+    transform: translateY(-50%) scale(0.9);
+  }
+  &::before {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: calc(100% + 0px);
+    transform: translateY(-50%) scale(0.9);
+    border-top-color: transparent;
+    border-left-color: var(--color-heading);
+  }
+  &:hover::after,
+  &:hover::before {
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+[data-tooltip-pos="right"] {
+  &::after {
+    bottom: auto;
+    top: 50%;
+    left: calc(100% + 10px);
+    right: auto;
+    transform: translateY(-50%) scale(0.9);
+  }
+  &::before {
+    bottom: auto;
+    top: 50%;
+    left: calc(100% + 0px);
+    right: auto;
+    transform: translateY(-50%) scale(0.9);
+    border-top-color: transparent;
+    border-right-color: var(--color-heading);
+  }
+  &:hover::after,
+  &:hover::before {
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+/* ── Message markdown styles now handled by SmartMarkdown.jsx (Tailwind) ── */
+
+/* ── Message fade-in ── */
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-msg-in {
+  animation: msg-in 0.25s ease-out both;
+}
+
+/* ── Resize handle states (outside #chat-assistant-root, needs plain CSS) ── */
+.zip-ai-resize-handle .resize-dots {
+  opacity: 0;
+}
+.zip-ai-resize-handle:hover {
+  background-color: hsl(262.1 83.3% 57.8% / 0.12);
+}
+.zip-ai-resize-handle:hover .resize-dots,
+.zip-ai-resize-handle.dragging .resize-dots {
+  opacity: 1;
+}
+.zip-ai-resize-handle.dragging {
+  background-color: hsl(262.1 83.3% 57.8% / 0.22);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WP DOM targeting styles — these MUST be global CSS because they
+   style WordPress elements (body, admin bar, block editor) that
+   live outside the React app. Toggled by vanilla JS in wp-bridge-host.js.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --zipwp-sidebar-width: 550px;
+}
+
+/* ── Full-page assistant admin screen ──────────────────────────────────── */
+
+/* Strip WP admin content-area chrome so chat can go edge-to-edge */
+body.zip-ai-fullpage-page #wpcontent {
+  padding-left: 0 !important;
+}
+
+body.zip-ai-fullpage-page #wpbody-content {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Hide WP footer version text on the fullpage assistant screen */
+body.zip-ai-fullpage-page #wpfooter {
+  display: none !important;
+}
+
+/* Hide all WP admin notices on the fullpage assistant screen */
+body.zip-ai-fullpage-page .notice,
+body.zip-ai-fullpage-page .error,
+body.zip-ai-fullpage-page .updated,
+body.zip-ai-fullpage-page .update-nag,
+body.zip-ai-fullpage-page .wp-header-end ~ .notice,
+body.zip-ai-fullpage-page #wpbody-content > .notice,
+body.zip-ai-fullpage-page #wpbody-content > .error,
+body.zip-ai-fullpage-page #wpbody-content > .updated {
+  display: none !important;
+}
+
+/* Outer screen wrapper — fills available viewport below the admin bar */
+.zip-ai-fullpage-screen {
+  margin: 0;
+  padding: 0;
+  height: calc(100vh - 32px); /* 32px = WP admin bar height */
+  overflow: hidden;
+}
+
+/* Without admin bar (e.g. ?noheader or custom screens) */
+body:not(.admin-bar) .zip-ai-fullpage-screen {
+  height: 100vh;
+}
+
+/* Inner container: fills the screen wrapper, no radius at this level */
+.zip-ai-fullpage-container {
+  position: relative;
+  height: 100%;
+  min-height: 480px;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+  padding: 0;
+}
+
+/* Hide trigger when sidebar is open (trigger is React portal on body) */
+body.zip-ai-assistant-open .zip-ai-floating-trigger {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.5);
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    visibility 0s 0.2s;
+}
+
+/* Sidebar container (PHP-rendered, toggled by vanilla JS) */
+.zip-ai-iframe-container {
+  position: fixed;
+  right: calc(-1 * var(--zipwp-sidebar-width));
+  /* Hidden by default, slides in from right */
+  top: 32px;
+  /* WordPress admin bar height */
+  width: var(--zipwp-sidebar-width);
+  height: calc(100vh - 32px);
+  background: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  transition:
+    right 0.3s ease-in-out,
+    width 0.05s ease-out;
+  visibility: hidden;
+  /* Hide when off-screen */
+  opacity: 0;
+}
+
+/* Visible state - slide in */
+.zip-ai-iframe-container.zip-ai-iframe-visible {
+  right: 0;
+  visibility: visible;
+  opacity: 1;
+  transition:
+    right 0.3s ease-in-out,
+    opacity 0.3s ease-in-out;
+}
+
+/* Push WordPress content to the left when assistant is open */
+/* Default: no margin (hidden state) */
+body {
+  margin-right: 0;
+  transition: margin-right 0.3s ease-in-out;
+}
+
+body.zip-ai-assistant-open {
+  margin-right: var(--zipwp-sidebar-width);
+  overflow-x: clip;
+  width: calc(100vw - var(--zipwp-sidebar-width));
+}
+
+/* Fix for alignfull blocks - recalculate width accounting for assistant panel */
+/* These blocks use calc(-50vw + 50%) which doesn't account for body margin */
+body.zip-ai-assistant-open .alignfull,
+body.zip-ai-assistant-open .uagb-is-root-container.alignfull,
+body.zip-ai-assistant-open .spectra-is-root-container.alignfull,
+body.zip-ai-assistant-open .wp-block-uagb-container.alignfull,
+body.zip-ai-assistant-open .wp-block-spectra-container.alignfull,
+body.zip-ai-assistant-open .wp-block-cover.alignfull,
+body.zip-ai-assistant-open .wp-block-group.alignfull {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Astra theme header - constrain to available width */
+body.zip-ai-assistant-open .site-header,
+body.zip-ai-assistant-open .ast-primary-header-bar,
+body.zip-ai-assistant-open .ast-main-header-wrap,
+body.zip-ai-assistant-open .site-primary-header-wrap {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Main content containers */
+body.zip-ai-assistant-open #page,
+body.zip-ai-assistant-open .site,
+body.zip-ai-assistant-open #content,
+body.zip-ai-assistant-open .site-content,
+body.zip-ai-assistant-open .ast-container {
+  max-width: 100% !important;
+  overflow-x: clip !important;
+}
+
+/* Also transition the admin bar */
+#wpadminbar {
+  right: 0;
+  transition: right 0.3s ease-in-out;
+}
+
+body.zip-ai-assistant-open #wpadminbar {
+  right: var(--zipwp-sidebar-width);
+}
+
+/* Adjust for frontend (no admin bar) */
+body:not(.admin-bar) .zip-ai-iframe-container {
+  top: 0;
+  height: 100vh;
+}
+
+/* Block Editor (Gutenberg) specific adjustments */
+/* Always apply transition to skeleton, not just when open */
+.block-editor-page .interface-interface-skeleton,
+.edit-post .interface-interface-skeleton,
+body.block-editor-page .interface-interface-skeleton {
+  margin-right: 0;
+  transition: margin-right 0.3s ease-in-out;
+}
+
+/* Apply margin when assistant is open */
+.block-editor-page body.zip-ai-assistant-open .interface-interface-skeleton,
+.edit-post body.zip-ai-assistant-open .interface-interface-skeleton,
+body.block-editor-page.zip-ai-assistant-open .interface-interface-skeleton {
+  margin-right: var(--zipwp-sidebar-width);
+}
+
+/* Reset body margin in block editor (let skeleton handle it) */
+.block-editor-page body.zip-ai-assistant-open,
+.edit-post body.zip-ai-assistant-open,
+body.block-editor-page.zip-ai-assistant-open {
+  margin-right: 0 !important;
+}
+
+/* Adjust editor content area */
+.block-editor-page .interface-interface-skeleton__content,
+.edit-post .interface-interface-skeleton__content {
+  transition: margin-right 0.3s ease-in-out;
+}
+
+/* Full height iframe in block editor */
+.block-editor-page .zip-ai-iframe-container,
+.edit-post .zip-ai-iframe-container,
+body.block-editor-page .zip-ai-iframe-container {
+  top: 0;
+  height: 100vh;
+}
+
+/* ── Popover / Floating card mode (see src/styles/popover.css) ────────────── */
+
+/* Prevent text selection during resize */
+body.zip-ai-resizing {
+  cursor: ew-resize !important;
+  -moz-user-select: none !important;
+       user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.zip-ai-resizing iframe {
+  pointer-events: none;
+}
+
+/* Fullscreen mode - iframe takes over entire viewport */
+.zip-ai-iframe-container.zip-ai-iframe-fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  top: 0 !important;
+  right: 0 !important;
+  box-shadow: none !important;
+  transition:
+    width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    top 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease;
+}
+
+/* Hide resize handle in fullscreen */
+.zip-ai-iframe-container.zip-ai-iframe-fullscreen
+  .zip-ai-resize-handle {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+/* Smooth exit back to sidebar */
+.zip-ai-iframe-container.zip-ai-iframe-visible:not(
+    .zip-ai-iframe-fullscreen
+  ) {
+  transition:
+    right 0.3s ease-in-out,
+    opacity 0.3s ease-in-out,
+    width 0.35s cubic-bezier(0.33, 1, 0.68, 1),
+    height 0.35s cubic-bezier(0.33, 1, 0.68, 1),
+    top 0.35s cubic-bezier(0.33, 1, 0.68, 1),
+    box-shadow 0.3s ease;
+}
+
+/* Remove body margin push in fullscreen */
+body.zip-ai-assistant-fullscreen,
+body.zip-ai-iframe-fullscreen {
+  margin-right: 0 !important;
+  width: 100vw !important;
+  overflow: hidden;
+}
+
+body.zip-ai-assistant-fullscreen #wpadminbar,
+body.zip-ai-iframe-fullscreen #wpadminbar {
+  right: 0 !important;
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Block editor: remove skeleton margin in fullscreen */
+body.zip-ai-assistant-fullscreen .interface-interface-skeleton,
+body.zip-ai-iframe-fullscreen .interface-interface-skeleton {
+  margin-right: 0 !important;
+  transition: margin-right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===== Block Context Picker ===== */
+
+/* Floating "+" pin button — repositions on hover over blocks */
+.zipwp-context-pin {
+  display: none;
+  position: absolute;
+  z-index: 100000;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: hsl(262.1 83.3% 57.8%);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px hsl(262.1 83.3% 57.8% / 0.35);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.zipwp-context-pin:hover {
+  background: hsl(262.1 83.3% 50%);
+  box-shadow: 0 4px 12px hsl(262.1 83.3% 57.8% / 0.4);
+}
+
+.zipwp-context-pin svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+/* Active state — block already pinned, show checkmark */
+.zipwp-context-pin--active {
+  background: #16a34a;
+}
+
+.zipwp-context-pin--active:hover {
+  background: #dc2626;
+}
+
+/* Highlight on pinned blocks — uses box-shadow
+   so it doesn't conflict with Gutenberg's outline */
+.zipwp-context-selected {
+  box-shadow: 0 0 0 2px hsl(262.1 83.3% 57.8%) !important;
+  border-radius: 2px;
+}
+
+/* Count badge on ERA FAB button */
+.zipwp-context-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  font-family:
+    "Figtree",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .zip-ai-fullpage-screen.wrap {
+    margin: 8px 10px 0 0;
+    height: calc(100vh - 48px);
+  }
+
+  .zip-ai-fullpage-container {
+    min-height: 520px;
+    border-radius: 16px;
+  }
+
+  .zip-ai-iframe-container {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  /* On mobile, use overlay instead of pushing content */
+  body.zip-ai-assistant-open {
+    margin-right: 0;
+    overflow: hidden;
+    /* Prevent scrolling when assistant is open */
+  }
+
+  body.zip-ai-assistant-open #wpadminbar {
+    right: 0;
+  }
+}
+
+/* Tablet and larger screens - slightly wider assistant panel */
+@media (min-width: 1024px) {
+  .zip-ai-iframe-container {
+    width: var(--zipwp-sidebar-width);
+    right: calc(-1 * var(--zipwp-sidebar-width));
+    /* Keep hidden position in sync with persisted resized widths */
+  }
+
+  .zip-ai-iframe-container.zip-ai-iframe-visible {
+    right: 0;
+  }
+
+  body.zip-ai-assistant-open {
+    margin-right: var(--zipwp-sidebar-width);
+    width: calc(100vw - var(--zipwp-sidebar-width));
+  }
+
+  body.zip-ai-assistant-open #wpadminbar {
+    right: var(--zipwp-sidebar-width);
+  }
+
+  /* Block editor adjustments for larger screens */
+  .block-editor-page
+    body.zip-ai-assistant-open
+    .interface-interface-skeleton,
+  .edit-post body.zip-ai-assistant-open .interface-interface-skeleton,
+  body.block-editor-page.zip-ai-assistant-open
+    .interface-interface-skeleton {
+    margin-right: var(--zipwp-sidebar-width);
+  }
+
+  /* Ensure skeleton still has transition on larger screens */
+  .block-editor-page .interface-interface-skeleton,
+  .edit-post .interface-interface-skeleton,
+  body.block-editor-page .interface-interface-skeleton {
+    margin-right: 0;
+  }
+}
+#chat-assistant-root .placeholder\:text-\[\#8b92a3\]::-moz-placeholder{
+    --tw-text-opacity: 1;
+    color: rgb(139 146 163 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .placeholder\:text-\[\#8b92a3\]::placeholder{
+    --tw-text-opacity: 1;
+    color: rgb(139 146 163 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .placeholder\:text-faint::-moz-placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .placeholder\:text-faint::placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .placeholder\:text-muted-foreground::-moz-placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .placeholder\:text-muted-foreground::placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/40::-moz-placeholder{
+    color: hsl(var(--muted-foreground) / 0.4);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/40::placeholder{
+    color: hsl(var(--muted-foreground) / 0.4);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/50::-moz-placeholder{
+    color: hsl(var(--muted-foreground) / 0.5);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/50::placeholder{
+    color: hsl(var(--muted-foreground) / 0.5);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/60::-moz-placeholder{
+    color: hsl(var(--muted-foreground) / 0.6);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/60::placeholder{
+    color: hsl(var(--muted-foreground) / 0.6);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/70::-moz-placeholder{
+    color: hsl(var(--muted-foreground) / 0.7);
+}
+#chat-assistant-root .placeholder\:text-muted-foreground\/70::placeholder{
+    color: hsl(var(--muted-foreground) / 0.7);
+}
+#chat-assistant-root .after\:absolute::after{
+    content: var(--tw-content);
+    position: absolute;
+}
+#chat-assistant-root .after\:inset-0::after{
+    content: var(--tw-content);
+    inset: 0px;
+}
+#chat-assistant-root .after\:z-\[1\]::after{
+    content: var(--tw-content);
+    z-index: 1;
+}
+#chat-assistant-root .after\:content-\[\'\'\]::after{
+    --tw-content: '';
+    content: var(--tw-content);
+}
+#chat-assistant-root .first\:mt-0:first-child{
+    margin-top: 0px;
+}
+#chat-assistant-root .last\:mb-0:last-child{
+    margin-bottom: 0px;
+}
+#chat-assistant-root .focus-within\:border-primary\/25:focus-within{
+    border-color: hsl(var(--primary) / 0.25);
+}
+#chat-assistant-root .focus-within\:border-primary\/40:focus-within{
+    border-color: hsl(var(--primary) / 0.4);
+}
+#chat-assistant-root .hover\:scale-y-\[1\.15\]:hover{
+    --tw-scale-y: 1.15;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .hover\:rounded:hover{
+    border-radius: var(--radius);
+}
+#chat-assistant-root .hover\:border-\[\#4f6dca\]:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(79 109 202 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-\[\#6366f1\]:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(99 102 241 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-\[\#d1d5db\]:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(209 213 219 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-\[rgba\(239\2c 68\2c 68\2c 0\.3\)\]:hover{
+    border-color: rgba(239,68,68,0.3);
+}
+#chat-assistant-root .hover\:border-\[rgba\(79\2c 109\2c 202\2c 0\.25\)\]:hover{
+    border-color: rgba(79,109,202,0.25);
+}
+#chat-assistant-root .hover\:border-\[rgba\(99\2c 102\2c 241\2c 0\.35\)\]:hover{
+    border-color: rgba(99,102,241,0.35);
+}
+#chat-assistant-root .hover\:border-border:hover{
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root .hover\:border-border-dark:hover{
+    --tw-border-opacity: 1;
+    border-color: hsl(220 13% 80% / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-brand:hover{
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root .hover\:border-danger:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(239 68 68 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-danger-dark:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(220 38 38 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:border-muted:hover{
+    border-color: hsl(var(--muted));
+}
+#chat-assistant-root .hover\:border-primary\/25:hover{
+    border-color: hsl(var(--primary) / 0.25);
+}
+#chat-assistant-root .hover\:border-primary\/35:hover{
+    border-color: hsl(var(--primary) / 0.35);
+}
+#chat-assistant-root .hover\:border-primary\/40:hover{
+    border-color: hsl(var(--primary) / 0.4);
+}
+#chat-assistant-root .hover\:border-warning-border:hover{
+    --tw-border-opacity: 1;
+    border-color: rgb(245 158 11 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-\[\#dbeafe\]:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-\[\#e8ebf0\]:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(232 235 240 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-\[\#eff6ff\]:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-\[rgba\(239\2c 68\2c 68\2c 0\.05\)\]:hover{
+    background-color: rgba(239,68,68,0.05);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(239\2c 68\2c 68\2c 0\.08\)\]:hover{
+    background-color: rgba(239,68,68,0.08);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(239\2c 68\2c 68\2c 0\.15\)\]:hover{
+    background-color: rgba(239,68,68,0.15);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(245\2c 158\2c 11\2c 0\.15\)\]:hover{
+    background-color: rgba(245,158,11,0.15);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.06\)\]:hover{
+    background-color: rgba(79,109,202,0.06);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.12\)\]:hover{
+    background-color: rgba(79,109,202,0.12);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.15\)\]:hover{
+    background-color: rgba(79,109,202,0.15);
+}
+#chat-assistant-root .hover\:bg-\[rgba\(99\2c 102\2c 241\2c 0\.15\)\]:hover{
+    background-color: rgba(99,102,241,0.15);
+}
+#chat-assistant-root .hover\:bg-accent:hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .hover\:bg-accent\/50:hover{
+    background-color: hsl(var(--accent) / 0.5);
+}
+#chat-assistant-root .hover\:bg-brand-hover:hover{
+    --tw-bg-opacity: 1;
+    background-color: hsl(262.1 83.3% 52% / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-brand\/\[0\.04\]:hover{
+    background-color: hsl(var(--primary) / 0.04);
+}
+#chat-assistant-root .hover\:bg-danger:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(239 68 68 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-danger-dark:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-destructive\/10:hover{
+    background-color: hsl(var(--destructive) / 0.1);
+}
+#chat-assistant-root .hover\:bg-destructive\/5:hover{
+    background-color: hsl(var(--destructive) / 0.05);
+}
+#chat-assistant-root .hover\:bg-heading\/90:hover{
+    background-color: hsl(var(--foreground) / 0.9);
+}
+#chat-assistant-root .hover\:bg-muted:hover{
+    background-color: hsl(var(--muted));
+}
+#chat-assistant-root .hover\:bg-muted\/30:hover{
+    background-color: hsl(var(--muted) / 0.3);
+}
+#chat-assistant-root .hover\:bg-muted\/40:hover{
+    background-color: hsl(var(--muted) / 0.4);
+}
+#chat-assistant-root .hover\:bg-muted\/50:hover{
+    background-color: hsl(var(--muted) / 0.5);
+}
+#chat-assistant-root .hover\:bg-primary\/10:hover{
+    background-color: hsl(var(--primary) / 0.1);
+}
+#chat-assistant-root .hover\:bg-primary\/20:hover{
+    background-color: hsl(var(--primary) / 0.2);
+}
+#chat-assistant-root .hover\:bg-primary\/\[0\.03\]:hover{
+    background-color: hsl(var(--primary) / 0.03);
+}
+#chat-assistant-root .hover\:bg-primary\/\[0\.04\]:hover{
+    background-color: hsl(var(--primary) / 0.04);
+}
+#chat-assistant-root .hover\:bg-success-dark:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(21 128 61 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-surface-active:hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .hover\:bg-surface-hover:hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .hover\:bg-transparent:hover{
+    background-color: transparent;
+}
+#chat-assistant-root .hover\:bg-warning-bg:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:bg-white\/35:hover{
+    background-color: rgb(255 255 255 / 0.35);
+}
+#chat-assistant-root .hover\:bg-white\/\[0\.08\]:hover{
+    background-color: rgb(255 255 255 / 0.08);
+}
+#chat-assistant-root .hover\:text-\[\#1e2330\]:hover{
+    --tw-text-opacity: 1;
+    color: rgb(30 35 48 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-\[\#4f6dca\]:hover{
+    --tw-text-opacity: 1;
+    color: rgb(79 109 202 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-body:hover{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .hover\:text-brand:hover{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .hover\:text-brand-hover:hover{
+    --tw-text-opacity: 1;
+    color: hsl(262.1 83.3% 52% / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-danger:hover{
+    --tw-text-opacity: 1;
+    color: rgb(239 68 68 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-danger-dark:hover{
+    --tw-text-opacity: 1;
+    color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-destructive:hover{
+    color: hsl(var(--destructive));
+}
+#chat-assistant-root .hover\:text-foreground:hover{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .hover\:text-heading:hover{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .hover\:text-medium:hover{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .hover\:text-muted-foreground:hover{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .hover\:text-primary:hover{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .hover\:text-primary\/80:hover{
+    color: hsl(var(--primary) / 0.8);
+}
+#chat-assistant-root .hover\:text-warning-text:hover{
+    --tw-text-opacity: 1;
+    color: rgb(146 64 14 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:text-white:hover{
+    --tw-text-opacity: 1;
+    color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:underline:hover{
+    text-decoration-line: underline;
+}
+#chat-assistant-root .hover\:decoration-brand-hover:hover{
+    text-decoration-color: hsl(262.1 83.3% 52%);
+}
+#chat-assistant-root .hover\:\!opacity-100:hover{
+    opacity: 1 !important;
+}
+#chat-assistant-root .hover\:opacity-100:hover{
+    opacity: 1;
+}
+#chat-assistant-root .hover\:opacity-90:hover{
+    opacity: 0.9;
+}
+#chat-assistant-root .hover\:opacity-95:hover{
+    opacity: 0.95;
+}
+#chat-assistant-root .hover\:opacity-\[0\.92\]:hover{
+    opacity: 0.92;
+}
+#chat-assistant-root .hover\:opacity-\[0\.96\]:hover{
+    opacity: 0.96;
+}
+#chat-assistant-root .hover\:shadow-\[0_2px_12px_hsl\(var\(--primary\)\/0\.09\)\]:hover{
+    --tw-shadow: 0 2px 12px hsl(var(--primary)/0.09);
+    --tw-shadow-colored: 0 2px 12px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:shadow-\[0_2px_8px_rgba\(37\2c 99\2c 235\2c 0\.1\)\]:hover{
+    --tw-shadow: 0 2px 8px rgba(37,99,235,0.1);
+    --tw-shadow-colored: 0 2px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:shadow-\[0_2px_8px_rgba\(37\2c 99\2c 235\2c 0\.4\)\]:hover{
+    --tw-shadow: 0 2px 8px rgba(37,99,235,0.4);
+    --tw-shadow-colored: 0 2px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:shadow-\[0_4px_12px_rgba\(0\2c 0\2c 0\2c 0\.14\)\]:hover{
+    --tw-shadow: 0 4px 12px rgba(0,0,0,0.14);
+    --tw-shadow-colored: 0 4px 12px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:shadow-\[0_4px_20px_hsl\(var\(--primary\)\/0\.10\)\]:hover{
+    --tw-shadow: 0 4px 20px hsl(var(--primary)/0.10);
+    --tw-shadow-colored: 0 4px 20px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:shadow-\[inset_0_0_0_1px_hsl\(var\(--primary\)\/0\.4\)\]:hover{
+    --tw-shadow: inset 0 0 0 1px hsl(var(--primary)/0.4);
+    --tw-shadow-colored: inset 0 0 0 1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:outline-border-dark:hover{
+    outline-color: hsl(220 13% 80%);
+}
+#chat-assistant-root .focus\:border-none:focus{
+    border-style: none;
+}
+#chat-assistant-root .focus\:border-\[\#4f6dca\]:focus{
+    --tw-border-opacity: 1;
+    border-color: rgb(79 109 202 / var(--tw-border-opacity, 1));
+}
+#chat-assistant-root .focus\:border-brand:focus{
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root .focus\:border-primary\/40:focus{
+    border-color: hsl(var(--primary) / 0.4);
+}
+#chat-assistant-root .focus\:border-ring:focus{
+    border-color: hsl(var(--ring));
+}
+#chat-assistant-root .focus\:bg-surface-hover:focus{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .focus\:text-destructive:focus{
+    color: hsl(var(--destructive));
+}
+#chat-assistant-root .focus\:text-heading:focus{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .focus\:shadow-\[0_0_0_3px_rgba\(79\2c 109\2c 202\2c 0\.1\)\]:focus{
+    --tw-shadow: 0 0 0 3px rgba(79,109,202,0.1);
+    --tw-shadow-colored: 0 0 0 3px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .focus\:shadow-none:focus{
+    --tw-shadow: 0 0 #0000;
+    --tw-shadow-colored: 0 0 #0000;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .focus\:outline-none:focus{
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+#chat-assistant-root .focus\:ring-0:focus{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .focus\:ring-1:focus{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .focus\:ring-2:focus{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .focus\:ring-border-focus:focus{
+    --tw-ring-color: hsl(var(--ring) / 0.35);
+}
+#chat-assistant-root .focus\:ring-primary\/40:focus{
+    --tw-ring-color: hsl(var(--primary) / 0.4);
+}
+#chat-assistant-root .focus\:ring-ring:focus{
+    --tw-ring-color: hsl(var(--ring));
+}
+#chat-assistant-root .focus\:\[border\:none\]:focus{
+    border: none;
+}
+#chat-assistant-root .focus\:\[box-shadow\:none\]:focus{
+    box-shadow: none;
+}
+#chat-assistant-root .focus\:\[outline\:none\]:focus{
+    outline: none;
+}
+#chat-assistant-root .focus-visible\:border-brand:focus-visible{
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root .focus-visible\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.06\)\]:focus-visible{
+    background-color: rgba(79,109,202,0.06);
+}
+#chat-assistant-root .focus-visible\:text-brand:focus-visible{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .focus-visible\:opacity-100:focus-visible{
+    opacity: 1;
+}
+#chat-assistant-root .focus-visible\:outline-none:focus-visible{
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+#chat-assistant-root .focus-visible\:outline-2:focus-visible{
+    outline-width: 2px;
+}
+#chat-assistant-root .focus-visible\:outline-offset-2:focus-visible{
+    outline-offset: 2px;
+}
+#chat-assistant-root .focus-visible\:outline-brand:focus-visible{
+    outline-color: hsl(var(--primary));
+}
+#chat-assistant-root .focus-visible\:ring-1:focus-visible{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .focus-visible\:ring-2:focus-visible{
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+#chat-assistant-root .focus-visible\:ring-inset:focus-visible{
+    --tw-ring-inset: inset;
+}
+#chat-assistant-root .focus-visible\:ring-border-focus:focus-visible{
+    --tw-ring-color: hsl(var(--ring) / 0.35);
+}
+#chat-assistant-root .focus-visible\:ring-primary:focus-visible{
+    --tw-ring-color: hsl(var(--primary));
+}
+#chat-assistant-root .focus-visible\:ring-ring:focus-visible{
+    --tw-ring-color: hsl(var(--ring));
+}
+#chat-assistant-root .focus-visible\:ring-offset-2:focus-visible{
+    --tw-ring-offset-width: 2px;
+}
+#chat-assistant-root .focus-visible\:ring-offset-background:focus-visible{
+    --tw-ring-offset-color: hsl(var(--background));
+}
+#chat-assistant-root .active\:scale-\[0\.97\]:active{
+    --tw-scale-x: 0.97;
+    --tw-scale-y: 0.97;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .active\:scale-\[0\.98\]:active{
+    --tw-scale-x: 0.98;
+    --tw-scale-y: 0.98;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .active\:scale-\[0\.99\]:active{
+    --tw-scale-x: 0.99;
+    --tw-scale-y: 0.99;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .hover\:enabled\:border-\[rgba\(79\2c 109\2c 202\2c 0\.25\)\]:enabled:hover{
+    border-color: rgba(79,109,202,0.25);
+}
+#chat-assistant-root .hover\:enabled\:border-border:enabled:hover{
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root .hover\:enabled\:border-brand:enabled:hover{
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root .hover\:enabled\:border-white\/20:enabled:hover{
+    border-color: rgb(255 255 255 / 0.2);
+}
+#chat-assistant-root .hover\:enabled\:bg-\[\#3f5ab5\]:enabled:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(63 90 181 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:bg-\[\#dbeafe\]:enabled:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:bg-\[\#e8ebf0\]:enabled:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(232 235 240 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:bg-\[\#eff6ff\]:enabled:hover{
+    --tw-bg-opacity: 1;
+    background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.12\)\]:enabled:hover{
+    background-color: rgba(79,109,202,0.12);
+}
+#chat-assistant-root .hover\:enabled\:bg-brand-hover:enabled:hover{
+    --tw-bg-opacity: 1;
+    background-color: hsl(262.1 83.3% 52% / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:bg-muted:enabled:hover{
+    background-color: hsl(var(--muted));
+}
+#chat-assistant-root .hover\:enabled\:bg-surface-active:enabled:hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .hover\:enabled\:bg-surface-hover:enabled:hover{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .hover\:enabled\:bg-white\/\[0\.08\]:enabled:hover{
+    background-color: rgb(255 255 255 / 0.08);
+}
+#chat-assistant-root .hover\:enabled\:text-\[\#1e2330\]:enabled:hover{
+    --tw-text-opacity: 1;
+    color: rgb(30 35 48 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:text-brand:enabled:hover{
+    color: hsl(var(--primary));
+}
+#chat-assistant-root .hover\:enabled\:text-heading:enabled:hover{
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root .hover\:enabled\:text-white:enabled:hover{
+    --tw-text-opacity: 1;
+    color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root .hover\:enabled\:underline:enabled:hover{
+    text-decoration-line: underline;
+}
+#chat-assistant-root .hover\:enabled\:shadow-\[0_1px_3px_rgba\(79\2c 109\2c 202\2c 0\.1\)\]:enabled:hover{
+    --tw-shadow: 0 1px 3px rgba(79,109,202,0.1);
+    --tw-shadow-colored: 0 1px 3px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .hover\:enabled\:shadow-\[0_4px_12px_rgba\(79\2c 109\2c 202\2c 0\.35\)\]:enabled:hover{
+    --tw-shadow: 0 4px 12px rgba(79,109,202,0.35);
+    --tw-shadow-colored: 0 4px 12px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root .active\:enabled\:bg-\[rgba\(79\2c 109\2c 202\2c 0\.16\)\]:enabled:active{
+    background-color: rgba(79,109,202,0.16);
+}
+#chat-assistant-root .disabled\:pointer-events-none:disabled{
+    pointer-events: none;
+}
+#chat-assistant-root .disabled\:cursor-not-allowed:disabled{
+    cursor: not-allowed;
+}
+#chat-assistant-root .disabled\:bg-faint:disabled{
+    background-color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .disabled\:bg-transparent:disabled{
+    background-color: transparent;
+}
+#chat-assistant-root .disabled\:opacity-30:disabled{
+    opacity: 0.3;
+}
+#chat-assistant-root .disabled\:opacity-35:disabled{
+    opacity: 0.35;
+}
+#chat-assistant-root .disabled\:opacity-40:disabled{
+    opacity: 0.4;
+}
+#chat-assistant-root .disabled\:opacity-50:disabled{
+    opacity: 0.5;
+}
+#chat-assistant-root .disabled\:opacity-60:disabled{
+    opacity: 0.6;
+}
+#chat-assistant-root .disabled\:opacity-65:disabled{
+    opacity: 0.65;
+}
+#chat-assistant-root .disabled\:opacity-70:disabled{
+    opacity: 0.7;
+}
+#chat-assistant-root :is(.group:hover .group-hover\:translate-x-0){
+    --tw-translate-x: 0px;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root :is(.group:hover .group-hover\:scale-105){
+    --tw-scale-x: 1.05;
+    --tw-scale-y: 1.05;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root :is(.group\/tools:hover .group-hover\/tools\:text-muted-foreground){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.group\/msg:hover .group-hover\/msg\:opacity-100){
+    opacity: 1;
+}
+#chat-assistant-root :is(.group:hover .group-hover\:opacity-100){
+    opacity: 1;
+}
+#chat-assistant-root :is(.group:hover .group-hover\:opacity-60){
+    opacity: 0.6;
+}
+#chat-assistant-root :is(.peer:disabled ~ .peer-disabled\:cursor-not-allowed){
+    cursor: not-allowed;
+}
+#chat-assistant-root :is(.peer:disabled ~ .peer-disabled\:opacity-70){
+    opacity: 0.7;
+}
+#chat-assistant-root .data-\[disabled\]\:pointer-events-none[data-disabled]{
+    pointer-events: none;
+}
+#chat-assistant-root .data-\[side\=bottom\]\:translate-y-1[data-side="bottom"]{
+    --tw-translate-y: 0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[side\=left\]\:-translate-x-1[data-side="left"]{
+    --tw-translate-x: -0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[side\=right\]\:translate-x-1[data-side="right"]{
+    --tw-translate-x: 0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[side\=top\]\:-translate-y-1[data-side="top"]{
+    --tw-translate-y: -0.25rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[state\=checked\]\:translate-x-4[data-state="checked"]{
+    --tw-translate-x: 1rem;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[state\=unchecked\]\:translate-x-0[data-state="unchecked"]{
+    --tw-translate-x: 0px;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root .data-\[state\=checked\]\:bg-brand[data-state="checked"]{
+    background-color: hsl(var(--primary));
+}
+#chat-assistant-root .data-\[state\=open\]\:bg-surface-hover[data-state="open"]{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .data-\[state\=unchecked\]\:bg-surface-active[data-state="unchecked"]{
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root .data-\[state\=open\]\:text-muted-foreground[data-state="open"]{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root .data-\[disabled\]\:opacity-50[data-disabled]{
+    opacity: 0.5;
+}
+@media (min-width: 640px){
+
+    #chat-assistant-root .sm\:block{
+        display: block;
+    }
+
+    #chat-assistant-root .sm\:flex-row{
+        flex-direction: row;
+    }
+
+    #chat-assistant-root .sm\:justify-end{
+        justify-content: flex-end;
+    }
+
+    #chat-assistant-root .sm\:gap-2{
+        gap: 0.5rem;
+    }
+
+    #chat-assistant-root .sm\:text-left{
+        text-align: left;
+    }
+
+    #chat-assistant-root .sm\:text-\[36px\]{
+        font-size: 36px;
+    }
+}
+@media (min-width: 768px){
+
+    #chat-assistant-root .md\:grid-cols-2{
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+#chat-assistant-root :is(.\[\&\+\&\]\:border-t+.\[\&\+\&\]\:border-t){
+    border-top-width: 1px;
+}
+#chat-assistant-root :is(.\[\&\+\&\]\:border-border+.\[\&\+\&\]\:border-border){
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar-thumb\]\:rounded-\[3px\]::-webkit-scrollbar-thumb{
+    border-radius: 3px;
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar-thumb\]\:rounded-sm::-webkit-scrollbar-thumb{
+    border-radius: calc(var(--radius) - 4px);
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar-thumb\]\:bg-\[\#dfe2e9\]::-webkit-scrollbar-thumb{
+    --tw-bg-opacity: 1;
+    background-color: rgb(223 226 233 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar-thumb\]\:bg-\[rgba\(0\2c 0\2c 0\2c 0\.15\)\]::-webkit-scrollbar-thumb{
+    background-color: rgba(0,0,0,0.15);
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar-track\]\:bg-transparent::-webkit-scrollbar-track{
+    background-color: transparent;
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar{
+    display: none;
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar\]\:w-1::-webkit-scrollbar{
+    width: 0.25rem;
+}
+#chat-assistant-root .\[\&\:\:-webkit-scrollbar\]\:w-\[3px\]::-webkit-scrollbar{
+    width: 3px;
+}
+#chat-assistant-root :is(.\[\&\:hover_\.customize-btn\:focus-visible\]\:opacity-100:hover .customize-btn:focus-visible){
+    opacity: 1;
+}
+#chat-assistant-root :is(.\[\&\:hover_\.customize-btn\:hover\]\:opacity-100:hover .customize-btn:hover){
+    opacity: 1;
+}
+#chat-assistant-root :is(.\[\&\:hover_\.customize-btn\]\:opacity-60:hover .customize-btn){
+    opacity: 0.6;
+}
+#chat-assistant-root :is(.\[\&\>\*\:first-child\]\:mt-0>*:first-child){
+    margin-top: 0px;
+}
+#chat-assistant-root :is(.\[\&\>span\]\:line-clamp-1>span){
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+}
+#chat-assistant-root :is(.\[\&\>svg\]\:transition-transform>svg){
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root :is(.\[\&\>svg\]\:duration-200>svg){
+    transition-duration: 200ms;
+}
+#chat-assistant-root :is(.hover\:\[\&\>svg\]\:rotate-90>svg:hover){
+    --tw-rotate: 90deg;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+#chat-assistant-root :is(.\[\&\>tr\:last-child\>td\]\:border-b-0>tr:last-child>td){
+    border-bottom-width: 0px;
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:relative .block-preview){
+    position: relative;
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:min-h-\[100px\] .block-preview){
+    min-height: 100px;
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:w-full .block-preview){
+    width: 100%;
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:overflow-hidden .block-preview){
+    overflow: hidden;
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:rounded-md .block-preview){
+    border-radius: calc(var(--radius) - 2px);
+}
+#chat-assistant-root :is(.\[\&_\.block-preview\]\:bg-white .block-preview){
+    --tw-bg-opacity: 1;
+    background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+}
+#chat-assistant-root :is(.\[\&_\.block-preview_iframe\]\:block .block-preview iframe){
+    display: block;
+}
+#chat-assistant-root :is(.\[\&_\.msg-content\]\:border-border .msg-content){
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root :is(.\[\&_\.msg-content\]\:bg-background .msg-content){
+    background-color: hsl(var(--background));
+}
+#chat-assistant-root :is(.\[\&_\.msg-content\]\:text-foreground .msg-content){
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:flex .preview-error){
+    display: flex;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:min-h-\[100px\] .preview-error){
+    min-height: 100px;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:flex-col .preview-error){
+    flex-direction: column;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:items-center .preview-error){
+    align-items: center;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:justify-center .preview-error){
+    justify-content: center;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:gap-2 .preview-error){
+    gap: 0.5rem;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:text-xs .preview-error){
+    font-size: 12px;
+    line-height: 16px;
+}
+#chat-assistant-root :is(.\[\&_\.preview-error\]\:text-muted-foreground .preview-error){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:flex .preview-loading){
+    display: flex;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:min-h-\[100px\] .preview-loading){
+    min-height: 100px;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:flex-col .preview-loading){
+    flex-direction: column;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:items-center .preview-loading){
+    align-items: center;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:justify-center .preview-loading){
+    justify-content: center;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:gap-2 .preview-loading){
+    gap: 0.5rem;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:text-xs .preview-loading){
+    font-size: 12px;
+    line-height: 16px;
+}
+#chat-assistant-root :is(.\[\&_\.preview-loading\]\:text-muted-foreground .preview-loading){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_\.section-skeleton-loader\]\:h-full .section-skeleton-loader){
+    height: 100%;
+}
+#chat-assistant-root :is(.\[\&_\.section-skeleton-loader\]\:min-h-0 .section-skeleton-loader){
+    min-height: 0px;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:pointer-events-none .section-toolbar){
+    pointer-events: none;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:pointer-events-auto .section-toolbar){
+    pointer-events: auto;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:visible .section-toolbar){
+    visibility: visible;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:invisible .section-toolbar){
+    visibility: hidden;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:opacity-0 .section-toolbar){
+    opacity: 0;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:opacity-100 .section-toolbar){
+    opacity: 1;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:transition-\[opacity\2c visibility\] .section-toolbar){
+    transition-property: opacity,visibility;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:duration-150 .section-toolbar){
+    transition-duration: 150ms;
+}
+#chat-assistant-root :is(.\[\&_\.section-toolbar\]\:ease-in-out .section-toolbar){
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+#chat-assistant-root :is(.hover\:\[\&_\.section-toolbar\]\:pointer-events-auto .section-toolbar:hover){
+    pointer-events: auto;
+}
+#chat-assistant-root :is(.hover\:\[\&_\.section-toolbar\]\:visible .section-toolbar:hover){
+    visibility: visible;
+}
+#chat-assistant-root :is(.hover\:\[\&_\.section-toolbar\]\:opacity-100 .section-toolbar:hover){
+    opacity: 1;
+}
+#chat-assistant-root :is(.\[\&_a\]\:text-inherit a){
+    color: inherit;
+}
+#chat-assistant-root :is(.\[\&_a\]\:decoration-primary-foreground\/40 a){
+    text-decoration-color: hsl(var(--primary-foreground) / 0.4);
+}
+#chat-assistant-root :is(.\[\&_code\]\:bg-transparent code){
+    background-color: transparent;
+}
+#chat-assistant-root :is(.\[\&_code\]\:p-0 code){
+    padding: 0px;
+}
+#chat-assistant-root :is(.\[\&_code\]\:text-inherit code){
+    color: inherit;
+}
+#chat-assistant-root :is(.\[\&_img\]\:my-1 img){
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+#chat-assistant-root :is(.\[\&_img\]\:h-auto img){
+    height: auto;
+}
+#chat-assistant-root :is(.\[\&_img\]\:max-h-\[80px\] img){
+    max-height: 80px;
+}
+#chat-assistant-root :is(.\[\&_img\]\:w-auto img){
+    width: auto;
+}
+#chat-assistant-root :is(.\[\&_img\]\:max-w-\[80px\] img){
+    max-width: 80px;
+}
+#chat-assistant-root :is(.\[\&_img\]\:rounded img){
+    border-radius: var(--radius);
+}
+#chat-assistant-root :is(.\[\&_img\]\:object-cover img){
+    -o-object-fit: cover;
+       object-fit: cover;
+}
+#chat-assistant-root :is(.\[\&_img\]\:shadow-sm img){
+    --tw-shadow: 0 1px 3px hsl(var(--foreground) / 0.04), 0 1px 2px hsl(var(--foreground) / 0.02);
+    --tw-shadow-colored: 0 1px 3px var(--tw-shadow-color), 0 1px 2px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+#chat-assistant-root :is(.\[\&_input\]\:mt-1 input){
+    margin-top: 0.25rem;
+}
+#chat-assistant-root :is(.\[\&_li\]\:flex li){
+    display: flex;
+}
+#chat-assistant-root :is(.\[\&_li\]\:items-start li){
+    align-items: flex-start;
+}
+#chat-assistant-root :is(.\[\&_li\]\:gap-2 li){
+    gap: 0.5rem;
+}
+#chat-assistant-root :is(.\[\&_p\:last-child\]\:mb-0 p:last-child){
+    margin-bottom: 0px;
+}
+#chat-assistant-root :is(.\[\&_p\]\:mb-0 p){
+    margin-bottom: 0px;
+}
+#chat-assistant-root :is(.\[\&_span\]\:text-sm span){
+    font-size: 14px;
+    line-height: 20px;
+}
+#chat-assistant-root :is(.\[\&_span\]\:font-medium span){
+    font-weight: 500;
+}
+#chat-assistant-root :is(.\[\&_span\]\:text-medium span){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_strong\]\:capitalize strong){
+    text-transform: capitalize;
+}
+#chat-assistant-root :is(.\[\&_strong\]\:text-\[\#1e2330\] strong){
+    --tw-text-opacity: 1;
+    color: rgb(30 35 48 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-3 svg){
+    height: 0.75rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-3\.5 svg){
+    height: 0.875rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-4 svg){
+    height: 1rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-5 svg){
+    height: 1.25rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-\[11px\] svg){
+    height: 11px;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:h-\[13px\] svg){
+    height: 13px;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-3 svg){
+    width: 0.75rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-3\.5 svg){
+    width: 0.875rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-4 svg){
+    width: 1rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-5 svg){
+    width: 1.25rem;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-\[11px\] svg){
+    width: 11px;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:w-\[13px\] svg){
+    width: 13px;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:shrink-0 svg){
+    flex-shrink: 0;
+}
+#chat-assistant-root :is(.\[\&_svg\]\:text-\[\#4f6dca\] svg){
+    --tw-text-opacity: 1;
+    color: rgb(79 109 202 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root :is(.\[\&_svg\]\:text-brand svg){
+    color: hsl(var(--primary));
+}
+#chat-assistant-root :is(.\[\&_svg\]\:text-muted-foreground svg){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_svg\]\:text-warning-border svg){
+    --tw-text-opacity: 1;
+    color: rgb(245 158 11 / var(--tw-text-opacity, 1));
+}
+#chat-assistant-root :is(.\[\&_svg\]\:opacity-75 svg){
+    opacity: 0.75;
+}
+#chat-assistant-root :is(.\[\&_textarea\:\:placeholder\]\:text-faint textarea)::-moz-placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_textarea\:\:placeholder\]\:text-faint textarea)::placeholder{
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_textarea\:disabled\]\:bg-surface-hover textarea:disabled){
+    background-color: hsl(var(--accent));
+}
+#chat-assistant-root :is(.\[\&_textarea\:disabled\]\:text-faint textarea:disabled){
+    color: hsl(var(--muted-foreground));
+}
+#chat-assistant-root :is(.\[\&_textarea\:focus\]\:border-brand textarea:focus){
+    border-color: hsl(var(--primary));
+}
+#chat-assistant-root :is(.\[\&_textarea\:focus\]\:outline-none textarea:focus){
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:w-full textarea){
+    width: 100%;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:resize-none textarea){
+    resize: none;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:rounded-lg textarea){
+    border-radius: var(--radius);
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:border textarea){
+    border-width: 1px;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:border-border textarea){
+    border-color: hsl(var(--border));
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:bg-surface-secondary textarea){
+    background-color: hsl(var(--muted));
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:px-3 textarea){
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:py-2 textarea){
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:font-\[inherit\] textarea){
+    font-family: inherit;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:text-sm textarea){
+    font-size: 14px;
+    line-height: 20px;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:leading-\[1\.4\] textarea){
+    line-height: 1.4;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:text-heading textarea){
+    color: hsl(var(--foreground));
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:transition-\[border-color\] textarea){
+    transition-property: border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+#chat-assistant-root :is(.\[\&_textarea\]\:duration-200 textarea){
+    transition-duration: 200ms;
+}
+#chat-assistant-root :is(ol .\[ol_\&\]\:my-1){
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+#chat-assistant-root :is(ul .\[ul_\&\]\:my-1){
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+

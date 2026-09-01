@@ -1,0 +1,142 @@
+# Copyright (C) 2026 Brainstorm Force
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: ERA 0.0.5\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/zip-ai\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-06-23T11:23:45+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: zip-ai\n"
+
+#. Plugin Name of the plugin
+#: zip-ai.php
+msgid "ERA"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: zip-ai.php
+msgid "https://zipwp.com/"
+msgstr ""
+
+#. Description of the plugin
+#: zip-ai.php
+msgid "ZipWP's AI-powered content creation and management plugin for WordPress."
+msgstr ""
+
+#. Author of the plugin
+#: zip-ai.php
+msgid "Brainstorm Force"
+msgstr ""
+
+#. Author URI of the plugin
+#: zip-ai.php
+msgid "https://brainstormforce.com/"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:38
+#: classes/admin/snippet-admin.php:39
+msgid "ERA Code Snippets"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:102
+msgid "Page Type"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:106
+msgid "User State"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:110
+msgid "User Role"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:114
+msgid "Post Type"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:118
+msgid "Specific Post / Page"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:122
+msgid "Device"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:126
+msgid "URL Pattern"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:133
+msgid "Homepage"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:137
+msgid "Single Post"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:141
+msgid "Page"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:145
+msgid "Archive"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:149
+msgid "404 Page"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:153
+msgid "Search Results"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:159
+msgid "Logged In"
+msgstr ""
+
+#: classes/admin/snippet-admin.php:167
+msgid "Mobile"
+msgstr ""
+
+#: classes/api/rest-api.php:672
+msgid "You do not have permission to execute tools."
+msgstr ""
+
+#: classes/api/snippet-rest-api.php:250
+msgid "You do not have permission to manage snippets."
+msgstr ""
+
+#: classes/core/helper.php:253
+msgid "No current user context — cannot provision Application Password."
+msgstr ""
+
+#: classes/core/helper.php:266
+msgid "Connecting user lacks manage_options — Application Password not provisioned."
+msgstr ""
+
+#: classes/core/helper.php:274
+msgid "Application Passwords are disabled on this site. Enable them or contact your administrator."
+msgstr ""
+
+#: classes/core/helper.php:283
+msgid "Application Passwords are disabled for the connecting user."
+msgstr ""
+
+#: classes/core/helper.php:338
+msgid "WP_Application_Passwords returned an unexpected response shape."
+msgstr ""
+
+#: classes/core/helper.php:723
+msgid "Failed to register with Laravel server."
+msgstr ""
+
+#: classes/react/react-manager.php:87
+#: classes/react/react-manager.php:88
+msgid "ERA Assistant"
+msgstr ""
