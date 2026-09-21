@@ -27,6 +27,14 @@ class Tool_Registry {
 	private $tools = array();
 
 	/**
+	 * Whether the Abilities API has already been folded into $tools.
+	 *
+	 * @since 0.0.11
+	 * @var bool
+	 */
+	private $synced = false;
+
+	/**
 	 * Constructor of this class.
 	 *
 	 * @since 1.0.0
@@ -36,9 +44,9 @@ class Tool_Registry {
 		// Allow third-party plugins to register tools after abilities API is ready.
 		add_action( 'wp_abilities_api_init', array( $this, 'trigger_tool_registration' ), 999 );
 
-		// Enqueue tool metadata for JavaScript.
+		// Sync the tool list for the admin screens only. Nothing on the front end reads it,
+		// and reaching for the registry there boots the entire Abilities API.
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_tool_metadata' ), 20 );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_tool_metadata' ), 20 );
 	}
 
 	/**
@@ -171,6 +179,7 @@ class Tool_Registry {
 	 * @since 1.0.0
 	 */
 	public function get_all_tools() {
+		$this->sync_from_abilities_api();
 		return $this->tools;
 	}
 
@@ -183,6 +192,7 @@ class Tool_Registry {
 	 * @since 1.0.0
 	 */
 	public function get_tool( $tool_name ) {
+		$this->sync_from_abilities_api();
 		return isset( $this->tools[ $tool_name ] ) ? $this->tools[ $tool_name ] : null;
 	}
 
@@ -195,6 +205,7 @@ class Tool_Registry {
 	 * @since 1.0.0
 	 */
 	public function get_tools_by_mode( $mode ) {
+		$this->sync_from_abilities_api();
 		return array_filter(
 			$this->tools,
 			function ( $tool ) use ( $mode ) {
@@ -216,23 +227,6 @@ class Tool_Registry {
 
 		// Sync tools from WordPress Abilities API
 		$this->sync_from_abilities_api();
-
-		// Prepare tool metadata for JavaScript (only execution-related info).
-		$tool_metadata = array();
-		foreach ( $this->tools as $tool_name => $tool_config ) {
-			$tool_metadata[ $tool_name ] = array(
-				'execution_mode' => $tool_config['execution_mode'],
-				'js_handler'     => $tool_config['js_handler'] ?? null,
-				'preview_mode'   => $tool_config['preview_mode'] ?? 'none',
-			);
-		}
-
-		// Add inline script with tool metadata.
-		wp_add_inline_script(
-			'zip-ai-tool-hooks',
-			'window.zipwpMcpTools = ' . wp_json_encode( $tool_metadata ) . ';',
-			'before'
-		);
 	}
 
 	/**
@@ -243,15 +237,19 @@ class Tool_Registry {
 	 * @return void
 	 */
 	private function sync_from_abilities_api() {
-		if ( ! class_exists( 'WP_Abilities_Registry' ) ) {
+		if ( $this->synced || ! class_exists( 'WP_Abilities_Registry' ) ) {
 			return;
 		}
 
+		// Reaching for the registry is what boots the Abilities API and registers every
+		// ability on the site, so only do it when the tool list is actually being read.
 		$registry = \WP_Abilities_Registry::get_instance();
 
 		if ( null === $registry ) {
 			return;
 		}
+
+		$this->synced = true;
 
 		$abilities = $registry->get_all_registered();
 

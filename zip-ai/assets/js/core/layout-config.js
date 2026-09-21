@@ -21,6 +21,7 @@
 			popoverSize: 'zipwp-popover-size',
 			sidebarWidth: 'zipwp-sidebar-width',
 			fabPosition: 'zip-ai-fab-position',
+			stageRail: 'zip-ai-stage-rail',
 			theme: 'zip-ai-theme',
 		},
 		// Panel layout values.
@@ -84,6 +85,7 @@
 				localStorage.removeItem( this.keys.popoverSize );
 				localStorage.removeItem( this.keys.sidebarWidth );
 				localStorage.removeItem( this.keys.fabPosition );
+				localStorage.removeItem( this.keys.stageRail );
 				localStorage.removeItem( this.keys.theme );
 			} catch ( e ) {}
 			try {

@@ -203,31 +203,14 @@ class React_Manager {
 			'zipwpIframeConfig',
 			array(
 				'nonce'            => wp_create_nonce( 'zip_ai_iframe' ),
-				'restNonce'        => wp_create_nonce( 'wp_rest' ),
 				'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
 				'displayMode'      => $this->is_fullpage_screen() ? 'fullpage' : 'sidebar',
 				'adminHomeUrl'     => admin_url(),
 				'userId'           => get_current_user_id(),
 				'authUrl'          => $auth_url,
-				'websiteContext'   => array(
-					'site_url'     => get_site_url(),
-					'admin_url'    => admin_url(),
-					'site_title'   => get_bloginfo( 'name' ),
-					'site_tagline' => get_bloginfo( 'description' ),
-					'language'     => get_bloginfo( 'language' ),
-					'timezone'     => wp_timezone_string(),
-					'date_format'  => get_option( 'date_format' ),
-					'time_format'  => get_option( 'time_format' ),
-					'is_multisite' => is_multisite(),
-				),
-				'pageContext'      => $this->get_current_page_context(),
 				'activeProduct'    => Product_Context::detect(),
 				'isBlockEditor'    => $this->is_block_editor_screen(),
 				'isPostEditScreen' => $this->is_post_edit_screen(),
-				'themeContext'     => array(
-					'color_palette' => $this->get_theme_color_palette(),
-				),
-				'installedPlugins' => $this->get_installed_plugins_versions(),
 				'setupGate'        => $this->get_setup_gate(),
 			)
 		);
@@ -293,7 +276,6 @@ class React_Manager {
 				// permission error after clicking it.
 				'canManageConnection' => current_user_can( 'manage_options' ),
 				'displayMode'         => $this->is_fullpage_screen() ? 'fullpage' : 'sidebar',
-				'fullPageUrl'         => admin_url( 'options-general.php?page=zip-ai-assistant' ),
 				'adminHomeUrl'        => admin_url(),
 				'userId'              => get_current_user_id(),
 				'domain'              => wp_parse_url( home_url(), PHP_URL_HOST ),
@@ -303,7 +285,6 @@ class React_Manager {
 					'email' => Helper::get_setting( 'user_email', '' ),
 					'name'  => Helper::get_setting( 'user_name', '' ),
 				),
-				'isFreshSite'         => (bool) get_option( 'fresh_site', false ),
 				'expireAt'            => $expire_at,
 				// Brand context for on-brand palette generation (colour picker).
 				'brandContext'        => $brand_context,
@@ -325,7 +306,6 @@ class React_Manager {
 				// server-side and do not use this.)
 				'updatesNonce'        => wp_create_nonce( 'updates' ),
 				'ajaxUrl'             => admin_url( 'admin-ajax.php' ),
-				'authUrl'             => $auth_url,
 			)
 		);
 	}
@@ -477,46 +457,6 @@ class React_Manager {
 	}
 
 	/**
-	 * Get current page/post context from PHP.
-	 *
-	 * @since 1.0.0
-	 * @return array<string, int|string|null>
-	 */
-	private function get_current_page_context() {
-		global $post;
-
-		$context = array(
-			'post_id'     => null,
-			'post_type'   => null,
-			'post_title'  => null,
-			'post_status' => null,
-		);
-
-		if ( $post instanceof \WP_Post ) {
-			$context['post_id']     = $post->ID;
-			$context['post_type']   = $post->post_type;
-			$context['post_title']  = $post->post_title;
-			$context['post_status'] = $post->post_status;
-			return $context;
-		}
-
-		if ( is_admin() ) {
-			$post_id = isset( $_GET['post'] ) && is_scalar( $_GET['post'] ) ? absint( $_GET['post'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( $post_id ) {
-				$admin_post = get_post( $post_id );
-				if ( $admin_post instanceof \WP_Post ) {
-					$context['post_id']     = $admin_post->ID;
-					$context['post_type']   = $admin_post->post_type;
-					$context['post_title']  = $admin_post->post_title;
-					$context['post_status'] = $admin_post->post_status;
-				}
-			}
-		}
-
-		return $context;
-	}
-
-	/**
 	 * Authoritative server-side check for whether the current screen is the
 	 * NATIVE WordPress post/page editor (post.php / post-new.php, screen base
 	 * 'post'). The JS bridge falls back to this when `wp.data` /
@@ -600,71 +540,6 @@ class React_Manager {
 		);
 
 		return $auth_url;
-	}
-
-	/**
-	 * Get theme color palette formatted as CSS variables.
-	 *
-	 * @since 1.0.0
-	 * @return array<string, string>
-	 */
-	private function get_theme_color_palette() {
-		if ( ! function_exists( 'astra_get_palette_colors' ) ) {
-			return array();
-		}
-
-		$palette_data = astra_get_palette_colors();
-		if ( ! is_array( $palette_data ) ) {
-			return array();
-		}
-
-		$current_palette = is_string( $palette_data['currentPalette'] ?? null ) ? $palette_data['currentPalette'] : '';
-		$palettes        = is_array( $palette_data['palettes'] ?? null ) ? $palette_data['palettes'] : array();
-
-		if ( '' === $current_palette || empty( $palettes[ $current_palette ] ) ) {
-			return array();
-		}
-
-		$colors = $palettes[ $current_palette ];
-		if ( ! is_array( $colors ) ) {
-			return array();
-		}
-
-		$formatted_palette = array();
-
-		foreach ( $colors as $index => $color ) {
-			if ( ! is_scalar( $color ) ) {
-				continue;
-			}
-			$formatted_palette[ '--ast-global-color-' . $index ] = (string) $color;
-		}
-
-		return $formatted_palette;
-	}
-
-	/**
-	 * Get installed plugins with their versions.
-	 *
-	 * @since 1.0.0
-	 * @return array<string, string>
-	 */
-	private function get_installed_plugins_versions() {
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-
-		$all_plugins     = get_plugins();
-		$plugin_versions = array();
-
-		foreach ( $all_plugins as $plugin_file => $plugin_data ) {
-			$slug = dirname( $plugin_file );
-			if ( '.' === $slug ) {
-				$slug = basename( $plugin_file, '.php' );
-			}
-			$plugin_versions[ $slug ] = is_string( $plugin_data['Version'] ?? null ) ? $plugin_data['Version'] : '0.0.0';
-		}
-
-		return $plugin_versions;
 	}
 
 	/**

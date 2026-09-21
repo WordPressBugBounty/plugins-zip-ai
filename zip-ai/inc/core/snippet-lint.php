@@ -62,9 +62,12 @@ class Snippet_Lint {
 			'get_the_ID'        => "conditions:[{type:'post',operator:'is',value:'<id>'}]",
 			'get_post_type'     => "conditions:[{type:'post_type',operator:'is',value:'<type>'}]",
 
-			// User / role
+			// User / role. `current_user_can()` is deliberately ABSENT: it is an
+			// authorization check, not placement — WordPress requires it inside
+			// `auth_callback` / `permission_callback` / form + AJAX handlers, and a
+			// `user_role` condition is not an equivalent (it decides whether the
+			// snippet runs at all, and roles are not capabilities).
 			'is_user_logged_in' => "conditions:[{type:'user',operator:'is',value:'logged_in'}]",
-			'current_user_can'  => "conditions:[{type:'user_role',operator:'in',values:['administrator','editor',...]}]",
 
 			// Device
 			'wp_is_mobile'      => "conditions:[{type:'device',operator:'is',value:'mobile'}]",
@@ -355,7 +358,7 @@ class Snippet_Lint {
 				$h['hint']
 			);
 		}
-		$lines[] = 'If you genuinely need one of these for non-routing logic (e.g. `current_user_can()` to gate a feature toggle, not page access), apply the `zip_ai_snippets_lint_targeting_functions` filter to whitelist it for this site.';
+		$lines[] = 'If you genuinely need one of these for non-routing logic (e.g. `get_post_type()` inside a `save_post` handler), apply the `zip_ai_snippets_lint_targeting_functions` filter to whitelist it for this site.';
 		return implode( "\n", $lines );
 	}
 

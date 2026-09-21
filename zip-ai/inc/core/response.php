@@ -97,6 +97,13 @@ class Response {
 			return self::error( 'An unknown error occurred.' );
 		}
 
-		return self::error( $wp_error->get_error_message() );
+		// Carry the machine-readable code alongside the prose. The brain
+		// classifies and steers a refused write on `data.code`; without it the
+		// only signal on the wire is an English sentence that unrelated PRs
+		// reword.
+		$code = (string) $wp_error->get_error_code();
+		$data = '' !== $code ? array( 'code' => $code ) : array();
+
+		return self::error( $wp_error->get_error_message(), '', $data );
 	}
 }

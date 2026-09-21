@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use ZipAI\MCP\Classes\Core\Helper;
+use ZipAI\MCP\Classes\Core\Response;
 use ZipAI\MCP\Classes\Core\Utils;
 use ZipAI\MCP\Classes\Security\Protected_Options_Filter;
 
@@ -421,19 +422,16 @@ class REST_API {
 		}
 
 		if ( is_wp_error( $result ) ) {
+			// Same envelope as every other refusal — the code rides in `data.code`
+			// (Response::from_wp_error), never top-level, so the brain has ONE
+			// shape to read.
 			return $this->format_mcp_response(
 				$id,
 				array(
 					'content' => array(
 						array(
 							'type' => 'text',
-							'text' => wp_json_encode(
-								array(
-									'success' => false,
-									'error'   => $result->get_error_message(),
-									'code'    => $result->get_error_code(),
-								)
-							),
+							'text' => wp_json_encode( Response::from_wp_error( $result ) ),
 						),
 					),
 					'isError' => true,

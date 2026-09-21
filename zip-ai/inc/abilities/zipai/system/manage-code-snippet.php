@@ -545,7 +545,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 		}
 		$result = Snippet_Versions::get( $slug, $version_id );
 		if ( is_wp_error( $result ) ) {
-			return Response::error( $result->get_error_message() );
+			return Response::from_wp_error( $result );
 		}
 		return Response::success( "Version '{$version_id}' loaded.", $this->to_arr( $result ) );
 	}
@@ -587,7 +587,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 		}
 		$entry = Snippet_Versions::restore( $slug, $version_id, $this->agent_context() );
 		if ( is_wp_error( $entry ) ) {
-			return Response::error( $entry->get_error_message() );
+			return Response::from_wp_error( $entry );
 		}
 		if ( ! $entry ) {
 			return Response::error( "Failed to restore version '{$version_id}'." );
@@ -1205,12 +1205,12 @@ class ManageCodeSnippet extends Abstract_Ability {
 	 * @param string $code           Raw snippet code.
 	 * @param string $title          Snippet title embedded in the PHP header.
 	 * @param string $execution_hook Hook the PHP file runs on, for lint context.
-	 * @return array{filepath: string, hash: string|false}|string Result array, or error string on failure.
+	 * @return array{filepath: string, hash: string|false}|string|\WP_Error Result array, the refusal (code intact) or an error string on failure.
 	 */
 	private function write_snippet_file( $slug, $type, $code, $title, $execution_hook = '' ) {
 		$content = $this->prepare_snippet_content( $type, $code, $title, $execution_hook );
 		if ( is_wp_error( $content ) ) {
-			return $content->get_error_message();
+			return $content;
 		}
 
 		return $this->write_prepared_file( $slug, $type, $content );
@@ -1406,7 +1406,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 		// per retry and no manifest entry pointing at it.
 		$content = $this->prepare_snippet_content( $type, $code, $snippet_title, Utils::to_str( $this->to_arr( $execution[ $type ] ?? array() )['hook'] ?? '' ) );
 		if ( is_wp_error( $content ) ) {
-			return Response::error( $content->get_error_message() );
+			return Response::from_wp_error( $content );
 		}
 
 		// New snippets get a randomized on-disk dir name so the filesystem
@@ -1749,6 +1749,9 @@ class ManageCodeSnippet extends Abstract_Ability {
 			$execution      = $this->sanitize_execution( $input['execution'] ?? array(), $this->to_arr( $meta['execution'] ?? array() ) );
 			$execution_hook = Utils::to_str( $this->to_arr( $execution[ $type ] ?? array() )['hook'] ?? '' );
 			$result         = $this->write_snippet_file( $slug, $type, Utils::to_str( $input['code'] ), Utils::to_str( $meta['title'] ?? '' ), $execution_hook );
+			if ( is_wp_error( $result ) ) {
+				return Response::from_wp_error( $result );
+			}
 			if ( is_string( $result ) ) {
 				return Response::error( $result );
 			}

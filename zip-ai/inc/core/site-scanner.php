@@ -274,7 +274,7 @@ class Site_Scanner {
 	/**
 	 * Fetch the latest published pages with raw content.
 	 *
-	 * @return array{count:int,items:array<int,array{title:string,slug:string,excerpt:string,word_count:int,raw_html:string}>} Page count and page items.
+	 * @return array{count:int,items:array<int,array{title:string,excerpt:string,raw_html:string}>} Page count and page items.
 	 */
 	private static function get_pages_raw() {
 		$pages = get_posts(
@@ -293,11 +293,9 @@ class Site_Scanner {
 			$text        = wp_strip_all_tags( $raw_content );
 
 			$items[] = array(
-				'title'      => $page->post_title,
-				'slug'       => $page->post_name,
-				'excerpt'    => mb_substr( $text, 0, 300 ),
-				'word_count' => str_word_count( $text ),
-				'raw_html'   => mb_substr( $raw_content, 0, 2000 ), // The server extracts headings from this.
+				'title'    => $page->post_title,
+				'excerpt'  => mb_substr( $text, 0, 300 ),
+				'raw_html' => mb_substr( $raw_content, 0, 2000 ), // The server extracts headings from this.
 			);
 		}
 

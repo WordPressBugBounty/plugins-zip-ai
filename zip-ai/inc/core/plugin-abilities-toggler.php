@@ -24,6 +24,13 @@ class Plugin_Abilities_Toggler {
 	 */
 	public static function init(): void {
 		add_action( 'activated_plugin', array( __CLASS__, 'on_activated_plugin' ), 20, 2 );
+		// Themes never fire `activated_plugin` and never appear in `active_plugins`,
+		// so a mapped THEME (Astra / Spectra One) would never get its abilities
+		// toggled by the plugin path above. `switch_theme` fires on EVERY theme
+		// activation route (admin UI, WP-CLI `theme activate`, server-side
+		// `switch_theme()` from the builder), so enable the new theme's mapped
+		// abilities here. Idempotent + slug-map gated, same as the plugin path.
+		add_action( 'switch_theme', array( __CLASS__, 'on_switch_theme' ), 20, 2 );
 	}
 
 	/**
@@ -84,6 +91,23 @@ class Plugin_Abilities_Toggler {
 	}
 
 	/**
+	 * On theme activation, enable MCP abilities for the newly-active theme when
+	 * its slug is mapped (e.g. Astra). Covers every activation path since they all
+	 * route through core `switch_theme()`. Both the stylesheet (child) slug and
+	 * the template (parent) slug are tried, so an Astra CHILD theme still enables
+	 * the `astra` entry. Idempotent — `enable_for_slug` re-applies harmlessly and
+	 * no-ops for unmapped slugs.
+	 *
+	 * @param string         $new_name  Name of the newly-activated theme (unused).
+	 * @param \WP_Theme|null $new_theme The newly-activated theme object.
+	 */
+	public static function on_switch_theme( $new_name = '', $new_theme = null ): void {
+		foreach ( self::theme_slugs_for( $new_theme ) as $slug ) {
+			self::enable_for_slug( $slug );
+		}
+	}
+
+	/**
 	 * This plugin's own folder slug, derived from its real install path rather
 	 * than assumed to be `zip-ai`. A branch zip from GitHub unpacks as
 	 * `zip-ai-<branch>/` and the legacy folder was `zipwp-mcp/` — hardcoding
@@ -99,19 +123,48 @@ class Plugin_Abilities_Toggler {
 	}
 
 	/**
-	 * Apply toggles for every currently-active MAPped plugin on the current
-	 * site. Covers activation orderings the `activated_plugin` hook misses — a
-	 * mapped plugin already active before ZIP AI, or before the site connected
-	 * to ERA. Idempotent: `enable_for_slug` re-applies harmlessly.
+	 * Apply toggles for every currently-active MAPped plugin — AND the active
+	 * theme — on the current site. Covers activation orderings the
+	 * `activated_plugin` / `switch_theme` hooks miss: a mapped plugin OR a mapped
+	 * theme already active before ZIP AI, or before the site connected to ERA
+	 * (the common case — Astra ships active on ZipWP sites, so its abilities must
+	 * turn on at connect, not only on a theme switch). Idempotent:
+	 * `enable_for_slug` re-applies harmlessly.
 	 *
 	 * @return void
 	 */
 	public static function sweep_active_mapped_plugins(): void {
-		foreach ( self::active_plugin_slugs() as $slug ) {
+		$slugs = array_merge( self::active_plugin_slugs(), self::theme_slugs_for() );
+		foreach ( $slugs as $slug ) {
 			if ( array_key_exists( $slug, self::MAP ) ) {
 				self::enable_for_slug( $slug );
 			}
 		}
+	}
+
+	/**
+	 * The mapped-eligible slugs for a theme: its stylesheet (child) slug and its
+	 * template (parent) slug, deduped, so an Astra CHILD theme still resolves the
+	 * `astra` map entry. Defaults to the ACTIVE theme when no object is given
+	 * (used by the connect / self-activation sweep).
+	 *
+	 * @param \WP_Theme|null $theme Theme to inspect, or null for the active theme.
+	 * @return array<int,string>
+	 */
+	private static function theme_slugs_for( $theme = null ): array {
+		$raw = $theme instanceof \WP_Theme
+			? array( $theme->get_stylesheet(), $theme->get_template() )
+			: array( get_stylesheet(), get_template() );
+
+		$slugs = array();
+		foreach ( $raw as $slug ) {
+			$slug = strtolower( (string) $slug );
+			if ( '' !== $slug ) {
+				$slugs[ $slug ] = true;
+			}
+		}
+
+		return array_keys( $slugs );
 	}
 
 	/**
@@ -482,8 +535,15 @@ class Plugin_Abilities_Toggler {
 		),
 		'astra'          => array(
 			'operations' => array(
+				// CREATE-if-absent (not `_if_exists`): on a fresh Astra site the
+				// `astra_admin_settings` option doesn't exist until the admin saves
+				// theme settings, so `_if_exists` would silently no-op and the font/
+				// typography abilities would never register. Astra reads each key
+				// with a per-key default and NEVER `add_option`s a defaults blob into
+				// this option (verified), so pre-creating it with just these keys
+				// loses nothing and its own saves RMW-merge on top.
 				array(
-					'type'   => 'set_option_array_keys_if_exists',
+					'type'   => 'set_option_array_keys',
 					'name'   => 'astra_admin_settings',
 					'values' => array(
 						'enable_abilities'      => true,

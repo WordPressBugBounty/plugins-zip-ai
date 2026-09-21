@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.10
+Stable tag: 0.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -196,6 +196,23 @@ Yes. You can clear stored site memory from the plugin. Deleting the plugin also 
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.11 - September 21, 2026 =
+- New: Build a website from an editable brief sheet instead of one long description.
+- New: Design editor with a pages sidebar and previews, where you can add, delete or restore any page.
+- New: Pick a Look draws whole colour palettes for your site.
+- New: Lock a colour or type your own, and the palette is drawn around it.
+- New: Pick your site fonts and they apply across the whole site.
+- Improvement: Design cards paint the whole page, not only the hero.
+- Improvement: The build shows the step it is working on rather than a timer.
+- Improvement: Previews use your real header and footer, shown at actual size.
+- Improvement: Built and imported forms match your site's own styling.
+- Fix: "Get more designs" brings you a fresh set, and the grid is sized for the designs coming.
+- Fix: Switching pages in the design editor keeps your editing context.
+- Fix: Undo and Redo dim while ZIP AI is editing, instead of looking available.
+- Fix: Hand edits keep their saved state when the history fills up.
+- Fix: Clear all chats now deletes the sessions it says it will.
+- Fix: The abilities layer no longer loads on every front-end page view.
 
 = 0.0.10 - August 28, 2026 =
 - New: A finished website build is celebrated with confetti and a "View my website" button.

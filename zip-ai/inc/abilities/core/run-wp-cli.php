@@ -78,6 +78,16 @@ class RunWpCli extends Abstract_Ability {
 	protected $is_destructive = true;
 
 	/**
+	 * The agent runs bulk operations through this ability one item at a time —
+	 * a large delete or update is hundreds of calls in a minute — so the
+	 * interactive default (100/min) throttles a legitimate bulk run partway
+	 * through. The REST proxy carries the same limit for the same reason.
+	 *
+	 * @var int
+	 */
+	protected $rate_limit = 1000;
+
+	/**
 	 * Configure the ability metadata.
 	 *
 	 * @return void

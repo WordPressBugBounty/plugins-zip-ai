@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.10
- * Build: 2026-08-28 08:41:01
+ * Version: 0.0.11
+ * Build: 2026-09-21 13:14:20
  */
 
 /**
@@ -27,6 +27,7 @@
 			popoverSize: 'zipwp-popover-size',
 			sidebarWidth: 'zipwp-sidebar-width',
 			fabPosition: 'zip-ai-fab-position',
+			stageRail: 'zip-ai-stage-rail',
 			theme: 'zip-ai-theme',
 		},
 		// Panel layout values.
@@ -90,6 +91,7 @@
 				localStorage.removeItem( this.keys.popoverSize );
 				localStorage.removeItem( this.keys.sidebarWidth );
 				localStorage.removeItem( this.keys.fabPosition );
+				localStorage.removeItem( this.keys.stageRail );
 				localStorage.removeItem( this.keys.theme );
 			} catch ( e ) {}
 			try {
@@ -6561,9 +6563,6 @@ return null;
     class WPBridgeHost {
         constructor() {
             this.config = window.zipwpIframeConfig || {};
-            this._snapshotCounter = 0;
-            this._selectionRevision = 0;
-            this._lastSelectedId = null;
             this.init();
         }
 
@@ -6895,23 +6894,10 @@ drag.resetLayout();
         // ── Context ───────────────────────────────────────────────────
 
         getContext() {
-            return {
-                wp_user_id: this.config.userId || null,
-                editor_context: this.getEditorContext(),
-                page_context: this.getPageContext(),
-                website_context: {
-                    current_url: window.location.href,
-                    ...( this.config.websiteContext || {} ),
-                },
-                theme_context: this.config.themeContext || {},
-                installed_plugins: this.config.installedPlugins || {},
-                admin_screen: this.getAdminScreenContext(),
-            };
+            return { editor_context: this.getEditorContext() };
         }
 
         getEditorContext() {
-            const snapshotId = ++this._snapshotCounter;
-
             // PHP-authoritative flag from `get_current_screen()->is_block_editor()`,
             // already narrowed server-side to the native post/page editor
             // (screen base 'post'; see React_Manager::is_block_editor_screen).
@@ -6954,12 +6940,6 @@ return editorContext;
 return editorContext;
 }
 
-            const currentSelectedId = blockEditorSelect.getSelectedBlockClientId();
-            if ( currentSelectedId !== this._lastSelectedId ) {
-                this._lastSelectedId = currentSelectedId;
-                this._selectionRevision = ( this._selectionRevision || 0 ) + 1;
-            }
-
             const blocks = blockEditorSelect.getBlocks();
             const hasEditorDOM = document.body.classList.contains( 'block-editor-page' ) ||
                 document.querySelector( '.block-editor-block-list__layout' ) ||
@@ -6980,7 +6960,6 @@ return editorContext;
             if ( coreEditorSelect ) {
                 const postId = coreEditorSelect.getCurrentPostId();
                 const postTitle = coreEditorSelect.getEditedPostAttribute( 'title' );
-                const postType = coreEditorSelect.getCurrentPostType();
                 // Public permalink of the open page — the measured-DNA render
                 // target for editor__generate_section (Issue #1083: a revamp/add
                 // matches the page's real spacing/layout, not only colour). The
@@ -6989,17 +6968,14 @@ return editorContext;
                 // src/services/dnaContext.js) so both share the one DNA cache.
                 const pageUrl = coreEditorSelect.getEditedPostAttribute( 'link' );
                 if ( postId ) {
-editorContext.post_id = postId;
-}
+                    editorContext.post_id = postId;
+                }
                 if ( postTitle ) {
-editorContext.post_title = postTitle;
-}
-                if ( postType ) {
-editorContext.post_type = postType;
-}
+                    editorContext.post_title = postTitle;
+                }
                 if ( pageUrl ) {
-editorContext.page_url = pageUrl;
-}
+                    editorContext.page_url = pageUrl;
+                }
             }
 
             // Build the compact page outline (top-level sections) for AI navigation.
@@ -7008,9 +6984,6 @@ editorContext.page_url = pageUrl;
             if ( editorContext.is_block_editor && blocks.length > 0 ) {
                 editorContext.page_outline = this.buildPageOutline( blocks );
             }
-
-            editorContext.snapshot_id = snapshotId;
-            editorContext.selection_revision = this._selectionRevision || 0;
 
             const selectedBlock = blockEditorSelect.getSelectedBlock();
             const hasLiveSelection = !! ( selectedBlock && selectedBlock.clientId && selectedBlock.name );
@@ -7512,29 +7485,6 @@ return { repeated_children: false, repeated_child_count: 0 };
             return info;
         }
 
-        getPageContext() {
-            const phpPageContext = this.config.pageContext || {};
-            return {
-                post_id: phpPageContext.post_id || null,
-                post_type: phpPageContext.post_type || null,
-                post_title: phpPageContext.post_title || null,
-                post_status: phpPageContext.post_status || null,
-            };
-        }
-
-        getAdminScreenContext() {
-            const phpContext = window.zipwpMcpContext || {};
-            const currentScreen = phpContext.currentScreen || {};
-            return {
-                id: currentScreen.id || null,
-                base: currentScreen.base || null,
-                post_type: currentScreen.post_type || null,
-                action: currentScreen.action || null,
-                parent_base: currentScreen.parent_base || null,
-                is_admin: phpContext.isAdmin || false,
-            };
-        }
-
         // ── Block Serialization ───────────────────────────────────────
 
         serializeBlock( block ) {
@@ -7849,8 +7799,6 @@ acc.push.apply( acc, a.unknown_attrs );
                                     success: hookResult.success !== false,
                                     message: hookResult.message || null,
                                     user_summary: hookResult.user_summary || null,
-                                    operation: hookResult.operation || null,
-                                    verification: hookResult.verification || hookResult.data?.verification || null,
                                     error: hookResult.error || null,
                                 } );
                             } else {
@@ -7928,21 +7876,11 @@ window.__zipwpLastToolResults = [];
             const cfg = window.ZIPAI_CONFIG || {};
             const attempts = 3;
             const backoffMs = 300;
-            // F6 — cap the per-attempt timeout so the TOTAL reply budget stays safely
-            // under the brain's BRPOP window even if an operator sets a large
-            // rpcReplyTimeoutMs. The old 6s default left only ~1s of headroom, and the
-            // offset between the brain STARTING its wait and this reply arriving
-            // (handler-exec + SSE + the reply route's ownership check) ate it — so a
-            // reply that actually succeeded landed after the brain gave up and was
-            // read as a FALSE timeout (the edit had already applied). 5s keeps the
-            // total ≈ 15.9s, ~4s inside the window.
-            const perAttemptMax = 5000;
-            const configured = Number( cfg.rpcReplyTimeoutMs ) > 0 ? Number( cfg.rpcReplyTimeoutMs ) : perAttemptMax;
-            const timeoutMs = Math.min( configured, perAttemptMax );
-            const apiUrl = ( cfg.apiUrl || '/api' ).replace( /\/+$/, '' );
-            // Route the reply DIRECT to the brain when configured (same switch
-            // as the React api client's brainPath); else fall back to Laravel.
-            const rpcReplyUrl = ( cfg.brainUrl ? cfg.brainUrl.replace( /\/+$/, '' ) : apiUrl ) + '/agent/rpc-reply';
+            // Per-attempt timeout: 3 × 5s + backoff ≈ 15.9s keeps the TOTAL reply
+            // budget ~4s inside the brain's BRPOP window (handler-exec + SSE + the
+            // reply route's ownership check eat the rest).
+            const timeoutMs = 5000;
+            const rpcReplyUrl = String( cfg.brainUrl || '' ).replace( /\/+$/, '' ) + '/agent/rpc-reply';
             const body = { call_id: callId, ok: !! ok };
             if ( sessionId ) {
  body.session_id = String( sessionId );

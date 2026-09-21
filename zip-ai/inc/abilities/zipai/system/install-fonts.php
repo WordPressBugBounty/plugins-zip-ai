@@ -208,6 +208,7 @@ class InstallFonts extends Abstract_Ability {
 		if ( is_wp_error( $css ) ) {
 			return array(
 				'family' => $family,
+				'slug'   => $slug,
 				'status' => 'failed',
 				'error'  => $css->get_error_message(),
 				'faces'  => array(),
@@ -218,6 +219,7 @@ class InstallFonts extends Abstract_Ability {
 		if ( empty( $sources ) ) {
 			return array(
 				'family' => $family,
+				'slug'   => $slug,
 				'status' => 'failed',
 				'error'  => 'No woff2 sources found in the Google css2 response.',
 				'faces'  => array(),
@@ -228,6 +230,7 @@ class InstallFonts extends Abstract_Ability {
 		if ( ! empty( $font_dir['error'] ) ) {
 			return array(
 				'family' => $family,
+				'slug'   => $slug,
 				'status' => 'failed',
 				'error'  => 'Font directory unavailable: ' . $font_dir['error'],
 				'faces'  => array(),
@@ -311,6 +314,7 @@ class InstallFonts extends Abstract_Ability {
 
 		return array(
 			'family'    => $family,
+			'slug'      => $slug,
 			'family_id' => $family_id,
 			'status'    => $status,
 			'faces'     => $faces,
@@ -625,6 +629,7 @@ class InstallFonts extends Abstract_Ability {
 								'type'       => 'object',
 								'properties' => array(
 									'family'    => array( 'type' => 'string' ),
+									'slug'      => array( 'type' => 'string' ),
 									'family_id' => array( 'type' => 'integer' ),
 									'status'    => array( 'type' => 'string' ),
 									'faces'     => array( 'type' => 'array' ),

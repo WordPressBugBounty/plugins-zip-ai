@@ -13,7 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use ZipAI\MCP\Classes\Core\Service_Provider;
-use ZipAI\MCP\Classes\Core\Context_Detector;
 use ZipAI\MCP\Classes\Core\Tool_Registry;
 use ZipAI\MCP\Classes\Api\Connection_REST_API;
 use ZipAI\MCP\Classes\Api\Plugin_Update_REST_API;
@@ -24,6 +23,7 @@ use ZipAI\MCP\Classes\Api\Snippet_REST_API;
 use ZipAI\MCP\Classes\React\React_Manager;
 use ZipAI\MCP\Classes\Admin\Snippet_Admin;
 use ZipAI\MCP\Classes\Imports\ImportTextureGate;
+use ZipAI\MCP\Classes\Imports\SureformsClassBridge;
 
 /**
  * Core Service Provider Class.
@@ -36,14 +36,6 @@ class Core_Service_Provider extends Service_Provider {
 	 * @return void
 	 */
 	public function register() {
-		// Register Context Detector.
-		$this->container->singleton(
-			Context_Detector::class,
-			function () {
-				return new Context_Detector();
-			}
-		);
-
 		// Register Tool Registry.
 		$this->container->singleton(
 			Tool_Registry::class,
@@ -129,6 +121,16 @@ class Core_Service_Provider extends Service_Provider {
 				return new ImportTextureGate();
 			}
 		);
+
+		// Register the SureForms class bridge — a built site's forms wear the
+		// site's own classes (stored on the form post by the importer), and
+		// SureForms' skin is off for every form the build owns.
+		$this->container->singleton(
+			SureformsClassBridge::class,
+			function () {
+				return new SureformsClassBridge();
+			}
+		);
 	}
 
 	/**
@@ -141,7 +143,6 @@ class Core_Service_Provider extends Service_Provider {
 		// In a pure DI world, we might do this differently, but for WP plugins,
 		// we often need to instantiate to add_action/add_filter.
 
-		$this->container->make( Context_Detector::class );
 		$this->container->make( Tool_Registry::class );
 		$this->container->make( REST_API::class );
 		$this->container->make( AJAX_Handlers::class );
@@ -149,6 +150,7 @@ class Core_Service_Provider extends Service_Provider {
 		$this->container->make( Snippet_REST_API::class );
 		$this->container->make( Snippet_Admin::class );
 		$this->container->make( ImportTextureGate::class );
+		$this->container->make( SureformsClassBridge::class );
 		$this->container->make( External_Mcp::class );
 		$this->container->make( Connection_REST_API::class );
 		$this->container->make( Plugin_Update_REST_API::class );

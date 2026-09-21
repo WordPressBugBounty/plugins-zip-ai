@@ -99,6 +99,12 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			// WP-CLI). Idempotent + slug-map gated.
 			\ZipAI\MCP\Classes\Core\Plugin_Abilities_Toggler::init();
 
+			// Abilities input normalizer — lets the chat call no-input readonly
+			// abilities over the browser Abilities run-route (GET can't carry a
+			// JSON object, so a schema without a top-level `default` — e.g. Astra's
+			// typography abilities — would 400 "input is not of type object").
+			\ZipAI\MCP\Classes\Core\Abilities_Input_Normalizer::init();
+
 			// Imported-chrome reader — renders imported header/footer template
 			// parts verbatim on ANY classic theme via a `template_include`
 			// canvas takeover when `zipai_chrome_mode === 'takeover'` (written
@@ -107,6 +113,9 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			// sites that never imported. Registering the option doubles as the
 			// backend's capability probe.
 			\ZipAI\MCP\Classes\Core\Imported_Chrome::init();
+
+			// Site blueprint — the plan the site was built from; never autoloads.
+			\ZipAI\MCP\Classes\Core\Site_Blueprint::init();
 
 			// Privacy policy disclosure (WordPress Guideline 7).
 			add_action( 'admin_init', array( $this, 'add_privacy_policy_content' ) );
@@ -199,7 +208,7 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			define( 'ZIPAI_MCP_FILE', __DIR__ . '/zip-ai.php' );
 			define( 'ZIPAI_MCP_DIR', plugin_dir_path( ZIPAI_MCP_FILE ) );
 			define( 'ZIPAI_MCP_URL', plugins_url( '/', ZIPAI_MCP_FILE ) );
-			define( 'ZIPAI_MCP_VERSION', '0.0.10' );
+			define( 'ZIPAI_MCP_VERSION', '0.0.11' );
 			define( 'ZIPAI_MCP_MENU_SLUG', 'zip-ai' );
 
 			// Base URL for ZIP AI credit server.
@@ -270,9 +279,6 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 		public function plugin_activated() {
 			// Add the required capability to administrator role.
 			$this->add_plugin_capabilities();
-
-			// Generate and register shared secret with the server on activation.
-			$this->register_hmac_secret();
 		}
 
 		/**
@@ -367,24 +373,6 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			foreach ( $roles->role_objects as $role ) {
 				if ( $role->has_cap( 'manage_zip_mcp_assistant' ) ) {
 					$role->remove_cap( 'manage_zip_mcp_assistant' );
-				}
-			}
-		}
-
-		/**
-		 * Register HMAC shared secret with the server.
-		 *
-		 * @since 1.0.0
-		 * @return void
-		 */
-		private function register_hmac_secret() {
-			// Only register if not already registered.
-			if ( ! Helper::is_hmac_registered() ) {
-				$registration_result = Helper::register_shared_secret_with_laravel();
-
-				if ( isset( $registration_result['error'] ) ) {
-					// Note: Error logging removed for production.
-					unset( $registration_result );
 				}
 			}
 		}

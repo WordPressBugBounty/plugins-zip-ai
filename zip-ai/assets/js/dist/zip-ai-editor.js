@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.10
- * Build: 2026-08-28 08:41:01
+ * Version: 0.0.11
+ * Build: 2026-09-21 13:14:20
  */
 
 /**
