@@ -163,6 +163,8 @@ class InstallFonts extends Abstract_Ability {
 				count( $results )
 			);
 
+			self::announce_ready( $results );
+
 			// Partial failure is still a useful result: the import proceeds
 			// either way (caller logs + retries on the next import).
 			return Response::success(
@@ -185,6 +187,34 @@ class InstallFonts extends Abstract_Ability {
 	 */
 	public function is_valid_weight( $weight ) {
 		return $weight >= 100 && $weight <= 900;
+	}
+
+	/**
+	 * An install that found every family present saves no post, so the Font
+	 * Library is never re-activated for the active theme (a theme switch leaves
+	 * the new theme's global styles without it). `zipai_font_library_ready`
+	 * names the families this call installed or found — `string[]` of
+	 * `wp_font_family` post names — and Spectra's bridge activates exactly those.
+	 *
+	 * @param array<int, array<string, mixed>> $results Per-family result rows.
+	 * @return void
+	 */
+	public static function announce_ready( array $results ): void {
+		$ready = array();
+		foreach ( $results as $r ) {
+			if ( isset( $r['status'], $r['slug'] ) && 'failed' !== $r['status'] && is_string( $r['slug'] ) && '' !== $r['slug'] ) {
+				$ready[] = $r['slug'];
+			}
+		}
+		if ( empty( $ready ) ) {
+			return;
+		}
+		try {
+			do_action( 'zipai_font_library_ready', $ready );
+		} catch ( \Throwable $e ) {
+			// A listener's failure never turns a finished install into a failed one.
+			unset( $e );
+		}
 	}
 
 	/**

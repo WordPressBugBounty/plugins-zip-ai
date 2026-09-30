@@ -4,12 +4,12 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.11
+Stable tag: 0.0.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
 
-WordPress AI website builder and AI agent for block themes. Build complete sites, pages, layouts, content and images by chatting inside WordPress.
+WordPress AI website builder and AI agent for Astra and block themes. Build sites, pages, layouts, content and images by chatting inside WordPress.
 
 == Description ==
 
@@ -196,6 +196,19 @@ Yes. You can clear stored site memory from the plugin. Deleting the plugin also 
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.12 - September 30, 2026 =
+- New: Restyle your whole site's design in any look, right from the vibe editor.
+- New: Open the assistant full screen from the Appearance menu.
+- Improvement: A smoother website build flow: preview each design, pick one and vibe edit it before you build.
+- Improvement: The brief opens instantly, asks what a business like yours needs, and fills itself in.
+- Improvement: Hover any build step to see what it is doing and how far along it is.
+- Improvement: Bring-your-own AI models default to GPT-6 Luna Pro.
+- Fix: Selecting, typing or pasting in the editor no longer changes your design or hides your text.
+- Fix: Retry on a failed design preview always retries, or tells you why it can't.
+- Fix: The brief sheet no longer flickers, and removing any tile works the first time.
+- Fix: Saving Settings > General no longer wipes ZIP AI's settings.
+- Fix: Your chosen fonts apply again after you switch themes (needs Spectra 1.0.10).
 
 = 0.0.11 - September 21, 2026 =
 - New: Build a website from an editable brief sheet instead of one long description.

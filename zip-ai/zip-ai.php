@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: ZIP AI
- * Description: ZIP AI is a conversational AI agent that builds, edits, and manages your WordPress site by chat - create pages, edit blocks, and run site operations right inside wp-admin. Requires a block (FSE) theme; does not work with classic themes.
+ * Description: ZIP AI is a conversational AI agent that builds, edits, and manages your WordPress site by chat - create pages, edit blocks, and run site operations right inside wp-admin. Works with Astra and block (FSE) themes.
  * Author: Brainstorm Force
  * Author URI: https://brainstormforce.com/
  * Plugin URI: https://zipwp.com/
- * Version: 0.0.11
+ * Version: 0.0.12
  * Requires at least: 6.4
  * Tested up to: 7.0
  * Requires PHP: 7.4
@@ -17,8 +17,10 @@
  * External Services:
  * This plugin connects to the ZIP AI platform (https://credits.zipwp.com)
  * to provide AI-powered site management. Chat messages, site structure data (page titles,
- * plugin names, post counts), and site identity are sent to this service after user
- * authentication. No page/post content, visitor data, or payment details are transmitted.
+ * plugin names, post counts), site identity, and the results of the WordPress tools the
+ * agent runs at your request (which can include post and page content, option values, and
+ * command output) are sent to this service after user authentication. No visitor data or
+ * payment details are transmitted.
  * Terms of Service: https://store.brainstormforce.com/terms-and-conditions/
  * Privacy Policy: https://store.brainstormforce.com/privacy-policy/
  *

@@ -66,10 +66,13 @@ class Site_Blueprint {
 	 * sanitizers would corrupt it. It is written only by the authenticated
 	 * builder over MCP and is never echoed into a page; its `rootAttrs` are
 	 * copied to HTML_ATTRS_OPTION_KEY, the one option that IS printed on `<html>`.
+	 *
+	 * The group is the plugin's own, which no admin form posts: wp-admin/options.php
+	 * writes null to every option of the posted group the form did not send.
 	 */
 	public static function register_contract(): void {
 		register_setting(
-			'general',
+			'zip_ai',
 			self::OPTION_KEY,
 			array(
 				'type'         => 'string',

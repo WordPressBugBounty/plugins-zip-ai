@@ -661,8 +661,14 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .z-\[160\]{
     z-index: 160;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .z-\[1\]{
+    z-index: 1;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .z-\[200\]{
     z-index: 200;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .z-\[2\]{
+    z-index: 2;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .z-\[999998\]{
     z-index: 999998;
@@ -711,6 +717,10 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mx-1\.5{
     margin-left: 0.375rem;
     margin-right: 0.375rem;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .mx-2{
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mx-2\.5{
     margin-left: 0.625rem;
@@ -849,6 +859,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mr-auto{
     margin-right: auto;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .mt-0{
+    margin-top: 0px;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mt-0\.5{
     margin-top: 0.125rem;
 }
@@ -881,6 +894,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mt-7{
     margin-top: 1.75rem;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .mt-\[3px\]{
+    margin-top: 3px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .mt-\[7px\]{
     margin-top: 7px;
@@ -1052,6 +1068,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .h-\[26px\]{
     height: 26px;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .h-\[28px\]{
+    height: 28px;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .h-\[2px\]{
     height: 2px;
 }
@@ -1156,6 +1175,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-h-\[min\(260px\2c 32vh\)\]{
     max-height: min(260px, 32vh);
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .max-h-\[min\(300px\2c 38vh\)\]{
+    max-height: min(300px, 38vh);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-h-\[var\(--radix-dropdown-menu-content-available-height\)\]{
     max-height: var(--radix-dropdown-menu-content-available-height);
@@ -1340,6 +1362,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[26px\]{
     width: 26px;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[28px\]{
+    width: 28px;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[292px\]{
     width: 292px;
 }
@@ -1364,11 +1389,11 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[460px\]{
     width: 460px;
 }
-:is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[520px\]{
-    width: 520px;
-}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[54px\]{
     width: 54px;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[560px\]{
+    width: 560px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[58px\]{
     width: 58px;
@@ -1476,6 +1501,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[44px\]{
     max-width: 44px;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[460px\]{
+    max-width: 460px;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[480px\]{
     max-width: 480px;
 }
@@ -1518,6 +1546,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[calc\(100vw-32px\)\]{
     max-width: calc(100vw - 32px);
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[min\(70vw\2c 26rem\)\]{
+    max-width: min(70vw, 26rem);
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-full{
     max-width: 100%;
 }
@@ -1559,6 +1590,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .basis-\[9\%\]{
     flex-basis: 9%;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .basis-full{
+    flex-basis: 100%;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .border-collapse{
     border-collapse: collapse;
@@ -2072,6 +2106,10 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .rounded-xxs{
     border-radius: 3px;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .rounded-b-md{
+    border-bottom-right-radius: calc(var(--radius) - 2px);
+    border-bottom-left-radius: calc(var(--radius) - 2px);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .rounded-l-lg{
     border-top-left-radius: var(--radius);
@@ -3005,9 +3043,6 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pb-0{
     padding-bottom: 0px;
 }
-:is(#chat-assistant-root, #zip-ai-snippets-root) .pb-0\.5{
-    padding-bottom: 0.125rem;
-}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pb-1{
     padding-bottom: 0.25rem;
 }
@@ -3062,6 +3097,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pl-5{
     padding-left: 1.25rem;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .pl-7{
+    padding-left: 1.75rem;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pl-8{
     padding-left: 2rem;
 }
@@ -3073,6 +3111,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pr-1\.5{
     padding-right: 0.375rem;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .pr-11{
+    padding-right: 2.75rem;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .pr-2{
     padding-right: 0.5rem;
@@ -3183,6 +3224,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .text-\[13px\]{
     font-size: 13px;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .text-\[14\.5px\]{
+    font-size: 14.5px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .text-\[14px\]{
     font-size: 14px;
@@ -3321,6 +3365,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .leading-\[14px\]{
     line-height: 14px;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .leading-\[18px\]{
+    line-height: 18px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .leading-none{
     line-height: 1;
@@ -3709,11 +3756,6 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
     --tw-shadow-colored: 0 25px 50px -12px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
-:is(#chat-assistant-root, #zip-ai-snippets-root) .shadow-\[0_0_0_3px_hsl\(var\(--primary\)\/0\.12\)\]{
-    --tw-shadow: 0 0 0 3px hsl(var(--primary)/0.12);
-    --tw-shadow-colored: 0 0 0 3px var(--tw-shadow-color);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .shadow-\[0_0_0_3px_hsl\(var\(--warn\)\/0\.18\)\]{
     --tw-shadow: 0 0 0 3px hsl(var(--warn)/0.18);
     --tw-shadow-colored: 0 0 0 3px var(--tw-shadow-color);
@@ -3918,12 +3960,20 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
     --tw-blur: blur(8px);
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .invert{
+    --tw-invert: invert(100%);
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .saturate-50{
     --tw-saturate: saturate(.5);
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .filter{
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .backdrop-blur{
+    --tw-backdrop-blur: blur(8px);
+    backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .backdrop-blur-\[2px\]{
     --tw-backdrop-blur: blur(2px);
@@ -4039,6 +4089,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .duration-700{
     transition-duration: 700ms;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .ease-in-out{
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .ease-out{
     transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
@@ -4097,6 +4150,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .duration-700{
     animation-duration: 700ms;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .ease-in-out{
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .ease-out{
     animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
@@ -5302,6 +5358,9 @@ body.zip-ai-stage-open {
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:border-primary:hover{
     border-color: hsl(var(--primary));
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:border-primary\/40:hover{
+    border-color: hsl(var(--primary) / 0.4);
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:border-stop:hover{
     border-color: hsl(var(--destructive));
 }
@@ -5485,6 +5544,9 @@ body.zip-ai-stage-open {
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:underline:hover{
     text-decoration-line: underline;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:no-underline:hover{
+    text-decoration-line: none;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:decoration-brand-hover:hover{
     text-decoration-color: hsl(var(--primary));
 }
@@ -5611,6 +5673,9 @@ body.zip-ai-stage-open {
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .focus\:\[outline\:none\]:focus{
     outline: none;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .focus-visible\:bg-sunken:focus-visible{
+    background-color: hsl(var(--bg-sunken));
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .focus-visible\:bg-sunken\/40:focus-visible{
     background-color: hsl(var(--bg-sunken) / 0.4);

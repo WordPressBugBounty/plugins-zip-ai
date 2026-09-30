@@ -277,6 +277,7 @@ class React_Manager {
 				'canManageConnection' => current_user_can( 'manage_options' ),
 				'displayMode'         => $this->is_fullpage_screen() ? 'fullpage' : 'sidebar',
 				'adminHomeUrl'        => admin_url(),
+				'fullPageUrl'         => admin_url( 'options-general.php?page=zip-ai-assistant' ),
 				'userId'              => get_current_user_id(),
 				'domain'              => wp_parse_url( home_url(), PHP_URL_HOST ),
 				'site_url'            => home_url(),

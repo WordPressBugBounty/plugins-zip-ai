@@ -143,14 +143,16 @@ class Imported_Chrome {
 	 * Register the activation contract — both REST-visible because the
 	 * importer writes them over `/wp/v2/settings` and `/wp/v2/pages/{id}`,
 	 * and the OPTION key's presence in GET /wp/v2/settings is the backend's
-	 * capability probe (probeChromeReader).
+	 * capability probe (probeChromeReader). The option's group is the plugin's
+	 * own, which no admin form posts: wp-admin/options.php writes null to every
+	 * option of the posted group the form did not send.
 	 *
 	 * @since 0.0.8
 	 * @return void
 	 */
 	public static function register_contract(): void {
 		register_setting(
-			'general',
+			'zip_ai',
 			self::OPTION_KEY,
 			array(
 				'type'              => 'string',
