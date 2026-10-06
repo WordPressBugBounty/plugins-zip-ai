@@ -5,7 +5,7 @@
  * Author: Brainstorm Force
  * Author URI: https://brainstormforce.com/
  * Plugin URI: https://zipwp.com/
- * Version: 0.0.12
+ * Version: 0.0.13
  * Requires at least: 6.4
  * Tested up to: 7.0
  * Requires PHP: 7.4

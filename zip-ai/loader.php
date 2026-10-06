@@ -120,6 +120,9 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			// JSON-LD — the build's schema.org blocks, printed in `<head>`.
 			\ZipAI\MCP\Classes\Core\Json_Ld::init();
 
+			// AOS hover handover — after a scroll entrance, an element's own hover eases again.
+			\ZipAI\MCP\Classes\Core\Aos_Hover_Handover::init();
+
 			// Privacy policy disclosure (WordPress Guideline 7).
 			add_action( 'admin_init', array( $this, 'add_privacy_policy_content' ) );
 		}
@@ -211,7 +214,7 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			define( 'ZIPAI_MCP_FILE', __DIR__ . '/zip-ai.php' );
 			define( 'ZIPAI_MCP_DIR', plugin_dir_path( ZIPAI_MCP_FILE ) );
 			define( 'ZIPAI_MCP_URL', plugins_url( '/', ZIPAI_MCP_FILE ) );
-			define( 'ZIPAI_MCP_VERSION', '0.0.12' );
+			define( 'ZIPAI_MCP_VERSION', '0.0.13' );
 			define( 'ZIPAI_MCP_MENU_SLUG', 'zip-ai' );
 
 			// Base URL for ZIP AI credit server.

@@ -1,10 +1,10 @@
-=== ZIP AI – AI Website Builder & AI Agent (Beta) ===
+=== ZIP AI – AI Website Builder & AI Agent ===
 Contributors: brainstormforce
 Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.12
+Stable tag: 0.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -26,8 +26,6 @@ Astra is currently the only supported classic WordPress theme. Other classic the
 ZIP AI can build and edit websites using Astra or a compatible Block / FSE theme.
 
 Please confirm that your site uses Astra or a supported Block / FSE theme before installing and connecting ZIP AI.
-
-**ZIP AI is also in active beta.** It is best suited to new, test, staging, or development websites and is not yet recommended for an established production website you are not willing to rebuild.
 
 = Build WordPress Websites With AI =
 
@@ -125,7 +123,7 @@ No data leaves your site until you authenticate and send a message. You can clea
 
 == Installation ==
 
-**Important:** ZIP AI currently supports Astra and compatible Block / FSE themes and is an active beta best suited to a new, test, staging, or development site.
+**Important:** ZIP AI currently supports Astra and compatible Block / FSE themes.
 
 = Before You Begin =
 
@@ -167,10 +165,6 @@ No. ZIP AI supports Astra as well as compatible WordPress Block / FSE themes. As
 
 Yes. ZIP AI is designed around the WordPress Block Editor and uses Gutenberg and Spectra blocks for supported building and editing workflows.
 
-= Should I use ZIP AI on a live production website? =
-
-ZIP AI is currently an active beta and is best suited to new, test, staging, or development sites. It is not yet recommended for an established production website you are not willing to rebuild.
-
 = Do I need a ZipWP account? =
 
 Yes. ZIP AI requires a ZipWP account to connect your WordPress website to the services that power its AI features.
@@ -196,6 +190,14 @@ Yes. You can clear stored site memory from the plugin. Deleting the plugin also 
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.13 - October 6, 2026 =
+- New: Refine button turns your description into a structured brief; the brief box is now resizable.
+- Improvement: The brief quiz asks only what you know, one question at a time, with suggestions filled in, example hints and a title matching your site type.
+- Improvement: ZIP AI and Import HTML / ZIP no longer carry a Beta label.
+- Fix: The brief no longer leaks skipped answers or sample text into the built site, shifts tiles while you type, or repeats text in a field.
+- Fix: Smooth hover effects on cards after their scroll animation.
+- Fix: Design cards and the style dock show each design's own name and a preset's label.
 
 = 0.0.12 - September 30, 2026 =
 - New: Restyle your whole site's design in any look, right from the vibe editor.
