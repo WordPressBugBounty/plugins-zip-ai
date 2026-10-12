@@ -550,7 +550,8 @@ out.styleContext = ctx;
     // editor/apply-change utility classNames (editor state, committed on Save). This
     // handler still rejects scope:'page' defensively so a stale/forked brain bundle
     // can never resurrect the silent DB write.
-    async function handleSetStyles( args ) {
+    // `signal` aborts past the bridge's reply budget: no write starts after it.
+    async function handleSetStyles( args, signal ) {
         const scope = args && args.scope === 'global' ? 'global' : null;
         const incoming = args && args.payload;
         if ( args && args.scope === 'page' ) {
@@ -567,6 +568,9 @@ out.styleContext = ctx;
         }
 
         // scope === 'global' — read-modify-write the option (immediate, site-wide).
+        const cancelled = function () {
+            return !! ( signal && signal.aborted );
+        };
         let existingGlobal;
         try {
             // eslint-disable-next-line no-redeclare, no-var
@@ -575,6 +579,9 @@ out.styleContext = ctx;
         } catch ( e ) {
             return { success: false, error: 'global_read_failed: ' + String( e && e.message ? e.message : e ) };
         }
+        if ( cancelled() ) {
+            return { success: false, error: 'cancelled_over_budget: nothing was written' };
+        }
         const mergedGlobal = mergePayload( existingGlobal, incoming );
         try {
             // /sitewide replaces non-class buckets wholesale → send the FULL merged
@@ -582,6 +589,9 @@ out.styleContext = ctx;
             await apiFetch( { path: NS + '/sitewide', method: 'POST', data: { payload: mergedGlobal } } );
         } catch ( e ) {
             return { success: false, error: 'global_write_failed: ' + String( e && e.message ? e.message : e ) };
+        }
+        if ( cancelled() ) {
+            return { success: false, error: 'cancelled_over_budget: the site-wide styles were written, the live repaint was skipped' };
         }
         try {
             const rg = await apiFetch( { path: NS + '/render', method: 'POST', data: { payload: mergedGlobal, post_id: 0, scope: 'global' } } );
@@ -606,8 +616,8 @@ out.styleContext = ctx;
             window.zipwpMcp.registerTool( 'editor/get-styles', async function ( args ) {
  return handleGetStyles( args );
 }, { previewMode: 'client' } );
-            window.zipwpMcp.registerTool( 'editor/set-styles', async function ( args ) {
- return handleSetStyles( args );
+            window.zipwpMcp.registerTool( 'editor/set-styles', async function ( args, context ) {
+ return handleSetStyles( args, context && context.signal );
 }, { previewMode: 'client' } );
         } else {
             setTimeout( initHandler, 100 );

@@ -41,9 +41,9 @@
     // reload happened between the apply and this replay → the edit is gone.
     function decideJsRpcDispatch( seenEntry, currentPageLoadId ) {
         if ( seenEntry ) {
+            // An untagged write cannot prove it ran on THIS load: reverify.
             if ( seenEntry.mutating === true &&
                 currentPageLoadId !== undefined && currentPageLoadId !== null &&
-                seenEntry.pageLoadId !== undefined &&
                 seenEntry.pageLoadId !== currentPageLoadId ) {
                 return { action: 'repost_cached', reply: RELOAD_REVERIFY_MARKER };
             }
@@ -52,15 +52,43 @@
         return { action: 'run', inFlightMarker: IN_FLIGHT_MARKER };
     }
 
+    // Bound the seen-map by evicting OLDER turns first (insertion order). Entries
+    // of `keepTurnId` (the turn being executed) are never evicted, so a replay of
+    // its earliest calls stays a no-op however many calls the turn makes.
+    // ponytail: one turn is bounded by the brain's step cap, not by this map.
+    function evictRpcSeen( seen, max, keepTurnId ) {
+        for ( const [ id, entry ] of seen ) {
+            if ( seen.size <= max ) {
+                break;
+            }
+            if ( ! keepTurnId || ! entry || entry.turnId !== keepTurnId ) {
+                seen.delete( id );
+            }
+        }
+        return seen;
+    }
+
+    // The brain waits a fixed window from DISPATCH, so handler time spends the
+    // same budget as the reply POST. Returns the next attempt's timeout, or 0
+    // when the window is spent (a later POST could only be refused).
+    function replyAttemptTimeout( startedAt, now, budgetMs, perAttemptMs ) {
+        const left = budgetMs - ( now - startedAt );
+        return left > 0 ? Math.min( perAttemptMs, left ) : 0;
+    }
+
     if ( typeof window !== 'undefined' ) {
         window.zipwpRpcDedup = window.zipwpRpcDedup || {};
         window.zipwpRpcDedup.decideJsRpcDispatch = decideJsRpcDispatch;
+        window.zipwpRpcDedup.evictRpcSeen = evictRpcSeen;
+        window.zipwpRpcDedup.replyAttemptTimeout = replyAttemptTimeout;
         window.zipwpRpcDedup.IN_FLIGHT_MARKER = IN_FLIGHT_MARKER;
         window.zipwpRpcDedup.RELOAD_REVERIFY_MARKER = RELOAD_REVERIFY_MARKER;
     }
     if ( typeof module !== 'undefined' && module.exports ) {
         module.exports = {
             decideJsRpcDispatch,
+            evictRpcSeen,
+            replyAttemptTimeout,
             IN_FLIGHT_MARKER,
             RELOAD_REVERIFY_MARKER,
         };

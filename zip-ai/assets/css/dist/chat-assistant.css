@@ -1803,6 +1803,11 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
        -moz-user-select: none;
             user-select: none;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .select-all{
+    -webkit-user-select: all;
+       -moz-user-select: all;
+            user-select: all;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .resize-none{
     resize: none;
 }
@@ -4257,6 +4262,15 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
   animation: spin 0.8s linear infinite;
 }
 
+/* WP core's common.css styles `.spinner` too (hidden, floated, margin, gif). */
+:is(#chat-assistant-root, #zip-ai-snippets-root) .spinner {
+  visibility: visible;
+  float: none;
+  margin: 0;
+  background: none;
+  opacity: 1;
+}
+
 /* ── Scoped base styles (inside #chat-assistant-root only) ── */
 .sr-only {
   position: absolute;
@@ -4298,10 +4312,12 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
   text-decoration: none;
   direction: ltr;
 
-  /* Scoped preflight — replaces @import "tailwindcss/preflight" which leaks globally.
-     Uses :where() for zero specificity so Tailwind utility classes always win. */
-  & :where(*),
-  & :where(::before, ::after) {
+  /* Box reset for the elements wp-admin styles by type (`p`, `li`, `h1`,
+     `input[type="text"]`, `.wp-core-ui select`). `&` is ID-weight (1,0,0)
+     so it beats those; Tailwind utilities are ID+class and still win. The
+     snippet editor's CodeMirror subtree keeps this weight too: its look is
+     tuned against the reset. */
+  & :where(p, h1, h2, h3, h4, h5, h6, ul, ol, li, dd, blockquote, figure, hr, code, kbd, img, iframe, fieldset, input, textarea, select, button, .cm-editor, .cm-editor *) {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -4352,6 +4368,18 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
   & :where(table) {
     border-collapse: collapse;
   }
+}
+
+/* Scoped preflight box reset for every other element — replaces
+   @import "tailwindcss/preflight" which leaks globally. Zero specificity
+   (root inside :where) so any class rule wins: .spinner, react-colorful,
+   CodeMirror. */
+:where(#chat-assistant-root, #zip-ai-snippets-root) :where(*),
+:where(#chat-assistant-root, #zip-ai-snippets-root) :where(::before, ::after) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0 solid;
 }
 
 /* Chat iframe takes full viewport. Snippets admin page lives inside
@@ -5133,6 +5161,7 @@ body.zip-ai-stage-open {
 }
 .zip-ai-color-wheel .react-colorful__saturation {
   border-radius: 10px 10px 0 0;
+  border-bottom: 0;
 }
 .zip-ai-color-wheel .react-colorful__hue {
   height: 18px;

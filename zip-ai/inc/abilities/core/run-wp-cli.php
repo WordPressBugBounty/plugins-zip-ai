@@ -299,18 +299,17 @@ class RunWpCli extends Abstract_Ability {
 		// WP-CLI. It is a stdio JSON-RPC MCP server. It routes `tools/call` to
 		// abilities. This runs in a process where `WP_CLI` is defined.
 		//
-		// That entry point stops one hop short today. This is only because
 		// `mcp-adapter/execute-ability` refuses anything without
-		// `meta['mcp']['public'] === true`. No `zipai/*` ability sets it. One
-		// `mcp_adapter_default_server_config` filter would make it reachable. So
-		// treat this path as guarded by configuration. Do not treat it as
-		// unreachable.
+		// `meta['mcp']['public'] === true`. The ability loader sets it on every
+		// exposed `zipai/*` ability, this one included, while the external MCP
+		// endpoint is switched on (`External_Mcp::is_enabled()`,
+		// `External_Tool_Policy::is_exposed()`). So this path is reachable
+		// whenever that toggle is on. Do not treat it as unreachable.
 		//
-		// A related point is wider than this ability. Only
-		// `Rest_Api::handle_mcp_request` (`inc/api/rest-api.php:116`) enters the
-		// MCP-context flag of `Protected_Options_Filter`. So on ANY non-REST MCP
-		// transport the filter backstop is inert for every protected key. This is
-		// tracked separately.
+		// The MCP-context flag of `Protected_Options_Filter` is entered by
+		// `Rest_Api::handle_mcp_request`, and by `External_Mcp::enter_protected_context`
+		// for every call on this plugin's adapter server and for a call on any
+		// other adapter server that runs a `zipai/*` ability, this one included.
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
 			$families = array_column( $this->candidate_positionals( $args ), 0 );
 			if ( ! in_array( 'search-replace', $families, true ) ) {

@@ -9,6 +9,7 @@
 namespace ZipAI\MCP\Classes\Abilities\Zipai\System;
 
 use ZipAI\MCP\Classes\Abilities\Abstract_Ability;
+use ZipAI\MCP\Classes\Abilities\Zipai\Builder\ImportMedia;
 use ZipAI\MCP\Classes\Core\Tool_Types;
 use ZipAI\MCP\Classes\Core\Response;
 
@@ -108,23 +109,37 @@ class UploadMedia extends Abstract_Ability {
 				return Response::error( 'Invalid or empty base64 data (decoded ' . strlen( (string) $decoded ) . ' bytes).' );
 			}
 
-			// Determine mime type from decoded data.
-			$finfo = new \finfo( FILEINFO_MIME_TYPE );
-			$mime  = $finfo->buffer( $decoded );
-			if ( ! $mime || strpos( $mime, 'image/' ) !== 0 ) {
-				$mime = 'image/png'; // fallback
-			}
-
 			// Load required WP functions.
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 			require_once ABSPATH . 'wp-admin/includes/image.php';
 			require_once ABSPATH . 'wp-admin/includes/media.php';
 
-			// Write to uploads directory.
-			if ( '' === $filename ) {
-				$filename = 'upload.png';
+			// The bytes decide the type and extension; the caller's filename is a
+			// naming hint only. Same policy as `zipai/import-media`.
+			$tmp = wp_tempnam( $filename );
+			if ( ! $tmp ) {
+				return Response::error( 'Could not create a temporary file.' );
 			}
-			$upload = wp_upload_bits( $filename, null, $decoded );
+			$written = file_put_contents( $tmp, $decoded ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_file_put_contents -- fresh wp_tempnam() path.
+			// A failed or short write leaves no bytes to sniff, and the type check
+			// would then name the file from its filename alone.
+			if ( strlen( $decoded ) !== $written ) {
+				wp_delete_file( $tmp );
+				return Response::error( 'Could not write the temporary file.' );
+			}
+			$resolved = ( new ImportMedia() )->resolve_image_file( $tmp, $filename );
+			wp_delete_file( $tmp );
+			if ( is_wp_error( $resolved ) ) {
+				return Response::error( $resolved->get_error_message() );
+			}
+			$mime = $resolved['type'];
+			$name = $resolved['name'];
+			if ( '' === $name ) {
+				return Response::error( 'Could not name the uploaded file.' );
+			}
+
+			// Write to uploads directory.
+			$upload = wp_upload_bits( $name, null, $decoded );
 			if ( ! empty( $upload['error'] ) ) {
 				return Response::error( 'wp_upload_bits failed: ' . $upload['error'] );
 			}

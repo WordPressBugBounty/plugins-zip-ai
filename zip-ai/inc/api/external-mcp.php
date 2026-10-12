@@ -36,6 +36,8 @@
 namespace ZipAI\MCP\Classes\Api;
 
 use ZipAI\MCP\Classes\Core\External_Tool_Policy;
+use ZipAI\MCP\Classes\Core\Utils;
+use ZipAI\MCP\Classes\Security\Protected_Options_Filter;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -90,6 +92,10 @@ class External_Mcp {
 		// error-carrying import abilities are ADVERTISED as their own tools
 		// rather than reached through the dispatcher.
 		add_filter( 'mcp_adapter_tool_call_result', array( $this, 'unmask_failed_dispatch' ), 10, 3 );
+		// The protected-options backstop holds on this transport too: entered last
+		// before execute, left first after it.
+		add_filter( 'mcp_adapter_pre_tool_call', array( $this, 'enter_protected_context' ), PHP_INT_MAX, 4 );
+		add_filter( 'mcp_adapter_tool_call_result', array( $this, 'exit_protected_context' ), PHP_INT_MIN );
 	}
 
 	/**
@@ -201,6 +207,86 @@ class External_Mcp {
 	}
 
 	/**
+	 * Whether this instance entered the protected-options MCP context.
+	 *
+	 * @var bool
+	 */
+	private $entered_protected_context = false;
+
+	/**
+	 * Enter the protected-options MCP context for a tool call on this server, and
+	 * for a call on ANY server that runs one of this plugin's `zipai/*` abilities:
+	 * they are public to every MCP server's dispatcher, so the server id alone
+	 * would leave them unguarded there.
+	 *
+	 * McpTool::execute turns a Throwable from the ability into a WP_Error, so
+	 * the result filter that leaves the context still runs; anything that ends
+	 * the request first is cleared by the shutdown hook, which fails closed.
+	 *
+	 * @param mixed  $args      Tool arguments, or a WP_Error from an earlier filter.
+	 * @param string $tool_name MCP tool name (slashes become hyphens).
+	 * @param mixed  $mcp_tool  MCP tool instance.
+	 * @param mixed  $server    The MCP server handling the call.
+	 * @return mixed
+	 */
+	public function enter_protected_context( $args, $tool_name, $mcp_tool, $server ) {
+		if ( is_wp_error( $args ) ) {
+			return $args;
+		}
+		$ours = $server instanceof \WP\MCP\Core\McpServer && self::SERVER_ID === $server->get_server_id();
+		if ( $ours || self::runs_zipai_ability( $args, (string) $tool_name, $mcp_tool ) ) {
+			Protected_Options_Filter::enter_mcp();
+			$this->entered_protected_context = true;
+		}
+		return $args;
+	}
+
+	/**
+	 * Whether a tool call runs one of this plugin's abilities (a namespace
+	 * `External_Tool_Policy::is_allowed()` admits): the tool's own ability, or
+	 * the one the adapter's dispatcher (`mcp-adapter/execute-ability`) is asked
+	 * to run. An adapter without the tool's ability name falls back to the tool
+	 * name, where the ability's slash reads as a hyphen: matched by namespace
+	 * prefix, so a namespace with a hyphen of its own is still read whole.
+	 *
+	 * @param mixed  $args      Tool arguments.
+	 * @param string $tool_name MCP tool name.
+	 * @param mixed  $mcp_tool  MCP tool instance.
+	 * @return bool
+	 */
+	private static function runs_zipai_ability( $args, $tool_name, $mcp_tool ) {
+		$context = is_object( $mcp_tool ) && method_exists( $mcp_tool, 'get_observability_context' ) ? $mcp_tool->get_observability_context() : array();
+		$ability = is_array( $context ) && isset( $context['ability_name'] ) && is_string( $context['ability_name'] ) ? $context['ability_name'] : '';
+		if ( 'mcp-adapter/execute-ability' === $ability || 'mcp-adapter-execute-ability' === $tool_name ) {
+			$ability = is_array( $args ) && isset( $args['ability_name'] ) && is_string( $args['ability_name'] ) ? $args['ability_name'] : '';
+			return '' !== $ability && External_Tool_Policy::is_allowed( $ability );
+		}
+		if ( '' !== $ability ) {
+			return External_Tool_Policy::is_allowed( $ability );
+		}
+		foreach ( External_Tool_Policy::ALLOWED_NAMESPACES as $namespace ) {
+			if ( str_starts_with( $tool_name, $namespace . '-' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Leave the protected-options MCP context entered for this call.
+	 *
+	 * @param mixed $result The tool call result.
+	 * @return mixed
+	 */
+	public function exit_protected_context( $result ) {
+		if ( $this->entered_protected_context ) {
+			$this->entered_protected_context = false;
+			Protected_Options_Filter::exit_mcp();
+		}
+		return $result;
+	}
+
+	/**
 	 * Surface a failure that the adapter's dispatcher hides.
 	 *
 	 * `mcp-adapter/execute-ability` wraps the target result as
@@ -282,6 +368,18 @@ class External_Mcp {
 		// A legacy boolean/empty value (written before this key was normalised to
 		// a string) is treated as an explicit OFF, matching what the admin chose.
 		$enabled = is_string( $stored ) ? self::ENABLED === $stored : (bool) $stored;
+
+		// The protected-options guard hooks filters added in MCP Adapter 0.5.0;
+		// an older standalone adapter would run every tool unguarded.
+		$adapter = defined( 'WP_MCP_VERSION' ) ? constant( 'WP_MCP_VERSION' ) : null;
+		if ( $enabled && is_string( $adapter ) && version_compare( $adapter, '0.5.0', '<' ) ) {
+			static $logged = false;
+			if ( ! $logged ) {
+				$logged = true;
+				Utils::debug_log( 'External MCP endpoint disabled', 'MCP Adapter ' . $adapter . ' is older than 0.5.0' );
+			}
+			$enabled = false;
+		}
 
 		/**
 		 * Filter whether the external MCP endpoint is available. Return false to

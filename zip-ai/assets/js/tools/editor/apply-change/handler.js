@@ -63,6 +63,145 @@ console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling
         return clean;
     }
 
+    // C5 — AI-authored block content never carries executable markup: no
+    // core/html block, no <script>, no inline on* handler, no script URL.
+    // Page JS goes through set_scripts. core/html is kept only as the
+    // converter's embed: exactly one bare https <iframe> (maps, video).
+    //
+    // Markup is read the way the browser will read it: parsed in an inert
+    // document (no browsing context, so nothing runs or loads), never matched
+    // with a regex. Rich-text strings are HTML fragments and parse as such.
+    function inertBody( html ) {
+        const doc = document.implementation.createHTMLDocument( '' );
+        doc.body.innerHTML = html;
+        return doc.body;
+    }
+    function urlProtocol( value ) {
+        try {
+            return new URL( String( value ), 'https://x.invalid' ).protocol;
+        } catch ( e ) {
+            return '';
+        }
+    }
+    const MARKUP_URL_ATTRS = [ 'href', 'src', 'action', 'formaction', 'xlink:href', 'to', 'from', 'values' ];
+    // noscript parses as markup here but as raw text on a live page, so its
+    // contents cannot be read the way the browser will read them.
+    const UNSAFE_TAGS = {
+        script: true, object: true, embed: true, base: true, meta: true,
+        noscript: true, template: true, style: true, link: true, form: true, xmp: true,
+    };
+    function unsafeUrlAttr( tag, name, value ) {
+        const proto = urlProtocol( value );
+        if ( proto === 'javascript:' || proto === 'vbscript:' ) {
+            return true;
+        }
+        // data: only as an image source on an element that cannot run it.
+        return proto === 'data:' && ! ( name === 'src' && tag !== 'iframe' && tag !== 'frame' &&
+            /^\s*data:image\//i.test( value ) );
+    }
+    // An <iframe> is allowed only as the core/html embed (allowIframe).
+    function unsafeElements( root, allowIframe ) {
+        const els = root.querySelectorAll( '*' );
+        for ( let i = 0; i < els.length; i++ ) {
+            const el = els[ i ];
+            const tag = el.tagName.toLowerCase();
+            if ( UNSAFE_TAGS[ tag ] || ( tag === 'iframe' && ! allowIframe ) ) {
+                return true;
+            }
+            for ( let j = 0; j < el.attributes.length; j++ ) {
+                const n = el.attributes[ j ].name.toLowerCase();
+                if ( /^on/.test( n ) || n === 'srcdoc' ||
+                    ( MARKUP_URL_ATTRS.indexOf( n ) !== -1 && unsafeUrlAttr( tag, n, el.attributes[ j ].value ) ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    function markupIsUnsafe( html, allowIframe ) {
+        return typeof html === 'string' && html.indexOf( '<' ) !== -1 && unsafeElements( inertBody( html ), allowIframe );
+    }
+    function isEventHandlerKey( k ) {
+        return /^on[a-z]+$/i.test( k ) && typeof window !== 'undefined' && !! window.HTMLElement &&
+            k.toLowerCase() in window.HTMLElement.prototype;
+    }
+    function unsafeValue( v, depth, allowIframe ) {
+        if ( typeof v === 'string' ) {
+            return markupIsUnsafe( v, allowIframe );
+        }
+        if ( ! v || typeof v !== 'object' || depth > 8 ) {
+            return false;
+        }
+        if ( typeof v.toHTMLString === 'function' ) {
+            return markupIsUnsafe( v.toHTMLString(), allowIframe );
+        }
+        return Object.keys( v ).some( function ( k ) {
+            // A URL-valued attr (linkURL, href, url, src…) holding a script URL.
+            if ( typeof v[ k ] === 'string' && /url|href|link|src/i.test( k ) ) {
+                const proto = urlProtocol( v[ k ] );
+                if ( proto === 'javascript:' || proto === 'vbscript:' ) {
+                    return true;
+                }
+            }
+            return isEventHandlerKey( k ) || unsafeValue( v[ k ], depth + 1, allowIframe );
+        } );
+    }
+    // Exactly one bare https <iframe>: no other node beside it but whitespace,
+    // no srcdoc / on* attribute, and only EMBED_ALLOW features in `allow`.
+    const EMBED_ALLOW = {
+        autoplay: true, 'encrypted-media': true, 'picture-in-picture': true, fullscreen: true,
+        accelerometer: true, gyroscope: true, 'clipboard-write': true, 'web-share': true,
+    };
+    function embedAllowOk( allow ) {
+        return String( allow || '' ).split( ';' ).every( function ( d ) {
+            const feature = d.trim().split( /\s+/ )[ 0 ].toLowerCase();
+            return feature === '' || EMBED_ALLOW[ feature ] === true;
+        } );
+    }
+    function isIframeEmbed( html ) {
+        const body = inertBody( html );
+        const el = body.firstElementChild;
+        if ( body.childElementCount !== 1 || el.tagName !== 'IFRAME' || el.childElementCount !== 0 ) {
+            return false;
+        }
+        for ( let i = 0; i < body.childNodes.length; i++ ) {
+            const n = body.childNodes[ i ];
+            if ( n !== el && ! ( n.nodeType === 3 && n.textContent.trim() === '' ) ) {
+                return false;
+            }
+        }
+        for ( let j = 0; j < el.attributes.length; j++ ) {
+            const n = el.attributes[ j ].name.toLowerCase();
+            if ( /^on/.test( n ) || n === 'srcdoc' ) {
+                return false;
+            }
+        }
+        let proto = '';
+        try {
+            proto = new URL( el.getAttribute( 'src' ) || '' ).protocol;
+        } catch ( e ) {
+            return false;
+        }
+        return proto === 'https:' && embedAllowOk( el.getAttribute( 'allow' ) );
+    }
+    function assertSafeContent( name, attributes ) {
+        const html = attributes && attributes.content;
+        // eslint-disable-next-line eqeqeq
+        if ( name === 'core/html' && html != null && html !== '' && ! isIframeEmbed( String( html ) ) ) {
+            throw new Error( 'unsafe_content: core/html is not allowed. Build the content from registered blocks.' );
+        }
+        if ( unsafeValue( attributes, 0, name === 'core/html' ) ) {
+            throw new Error( 'unsafe_content: ' + name + ' carries a <script>, <style>, <link>, <form>, <noscript>, <template> or <iframe>, an inline on* handler or a javascript: URL. Page JS goes through set_scripts.' );
+        }
+    }
+    function assertSafeParsedTree( block ) {
+        assertSafeContent( block.name, block.attributes );
+        if ( markupIsUnsafe( block.originalContent, block.name === 'core/html' ) ) {
+            throw new Error( 'unsafe_content: ' + block.name + ' carries a <script>, <style>, <link>, <form>, <noscript>, <template> or <iframe>, an inline on* handler or a javascript: URL.' );
+        }
+        ( block.innerBlocks || [] ).forEach( assertSafeParsedTree );
+    }
+
     // Recursively strip banned visual attrs from an already-PARSED block tree
     // (wp.blocks.parse output). The section_markup insert path bypasses toBlock,
     // so this is where the block path's per-block stripBannedAttrs is reapplied —
@@ -130,7 +269,7 @@ throw new Error( 'stale_client_id:' + id );
         replaceInnerBlocks: 'edit',
         moveBlocksToPosition: 'move',
     };
-    function assertMutable( sel, id, kind ) {
+    function assertMutable( sel, id, kind, structural ) {
         if ( ! id || ! sel.getBlock( id ) ) {
 return;
 } // stale / missing — liveness owns that miss
@@ -140,6 +279,20 @@ return;
         if ( typeof can === 'function' && can.call( sel, id ) === false ) {
             throw new Error( 'locked_block:' + id );
         }
+        if ( ! isAiEditable( sel, id, structural ) ) {
+            throw new Error( 'locked_block:' + id );
+        }
+    }
+
+    // Shared-content / editing-mode guard (editor-shared-utils, also read by
+    // set-scripts and Quick Edit). Missing module → allow, like the lock guards.
+    function isAiEditable( sel, id, structural ) {
+        const u = sharedEditorUtils();
+        return u && u.isAiEditable ? u.isAiEditable( sel, id, structural ) : true;
+    }
+    function isAiInsertableRoot( sel, root ) {
+        const u = sharedEditorUtils();
+        return u && u.isAiInsertableRoot ? u.isAiInsertableRoot( sel, root ) : true;
     }
 
     // Insert-time lock guard (GBR-2): insertBlocks / duplicateBlocks ADD a block to
@@ -150,12 +303,9 @@ return;
     // the brain surfaces it instead of relying on the dispatch to reject. Degrades
     // to ALLOW when the selector is absent (older Gutenberg) — never a false block.
     function assertInsertable( sel, root ) {
-        if ( typeof sel.getTemplateLock !== 'function' ) {
-return;
-}
         // eslint-disable-next-line eqeqeq
-        const lock = sel.getTemplateLock( root == null ? '' : root );
-        if ( lock === 'all' || lock === 'insert' ) {
+        const lock = typeof sel.getTemplateLock === 'function' ? sel.getTemplateLock( root == null ? '' : root ) : false;
+        if ( lock === 'all' || lock === 'insert' || lock === 'contentOnly' || ! isAiInsertableRoot( sel, root ) ) {
             throw new Error( 'locked_block:' + ( root || 'root' ) );
         }
     }
@@ -220,11 +370,9 @@ continue;
     // PERMITS moving existing children, so only 'all' blocks a move-in here.
     // Same degrade-to-ALLOW posture as assertInsertable.
     function assertMoveDestination( sel, root ) {
-        if ( typeof sel.getTemplateLock !== 'function' ) {
-return;
-}
         // eslint-disable-next-line eqeqeq
-        if ( sel.getTemplateLock( root == null ? '' : root ) === 'all' ) {
+        const lock = typeof sel.getTemplateLock === 'function' ? sel.getTemplateLock( root == null ? '' : root ) : false;
+        if ( lock === 'all' || lock === 'contentOnly' || ! isAiInsertableRoot( sel, root ) ) {
             throw new Error( 'locked_block:' + ( root || 'root' ) );
         }
     }
@@ -336,6 +484,8 @@ return '';
         }
         return undefined; // op has no destination-shaped field
     }
+    // `lockId` is one container clientId, or the members of a multi-selection:
+    // an id is in scope when it sits in ANY member's subtree.
     function assertWithinScope( sel, op, lockId ) {
         // Applying a PICKED section — the brain stamps `section_add` on every op
         // whose section_ref it resolved, whether that lands as a page-level ADD
@@ -345,18 +495,25 @@ return '';
         // so a click elsewhere while the previews rendered must not redirect the
         // replace. Narrow by design — the marker rides only a brain-resolved ref;
         // free-hand edits, moves, and inline-`blocks` inserts stay confined.
-        if ( ! lockId || SCOPE_EXEMPT_FUNCTIONS[ op.function ] || op.section_add === true ) {
+        const locks = Array.isArray( lockId ) ? lockId : ( lockId ? [ lockId ] : [] );
+        if ( locks.length === 0 || SCOPE_EXEMPT_FUNCTIONS[ op.function ] || op.section_add === true ) {
 return;
 }
+        const inScope = function ( id ) {
+            return locks.some( function ( l ) {
+ return isWithinScope( sel, id, l );
+} );
+        };
+        const label = locks.join( ', ' );
         const ids = scopeGoverningIds( op );
         if ( ids.length === 0 ) {
             // A mutating op with no resolved target = a page-root op (e.g. insert
             // at root). That lands OUTSIDE the selected container.
-            throw new Error( 'out_of_scope: this edit has no in-section target (it would land at the page root), but you are scoped to the selected container ' + lockId + ' — insert/edit INSIDE it, or tell the user if a different section is intended.' );
+            throw new Error( 'out_of_scope: this edit has no in-section target (it would land at the page root), but you are scoped to the selected container ' + label + ' — insert/edit INSIDE it, or tell the user if a different section is intended.' );
         }
         for ( let i = 0; i < ids.length; i++ ) {
-            if ( ! isWithinScope( sel, ids[ i ], lockId ) ) {
-                throw new Error( 'out_of_scope: target ' + ids[ i ] + ' is outside the selected container ' + lockId + ' (and its children). You are scoped to that section — edit inside it, or tell the user if a different section is intended.' );
+            if ( ! inScope( ids[ i ] ) ) {
+                throw new Error( 'out_of_scope: target ' + ids[ i ] + ' is outside the selected container ' + label + ' (and its children). You are scoped to that section — edit inside it, or tell the user if a different section is intended.' );
             }
         }
         const dest = resolvedDestinationOf( sel, op );
@@ -367,9 +524,9 @@ return;
         // resolvedDestinationOf derives `dest`); every other out-of-scope
         // destination — a DIFFERENT block copied outside — still throws.
         const duplicatingLockRoot = op.function === 'duplicateBlocks' &&
-            Array.isArray( op.clientIds ) && op.clientIds[ 0 ] === lockId;
-        if ( dest !== undefined && ! duplicatingLockRoot && ! isWithinScope( sel, dest, lockId ) ) {
-            throw new Error( 'out_of_scope: this would land at ' + ( dest === '' ? 'the page root' : dest ) + ', outside the selected container ' + lockId + ' — insert/move INSIDE it, or tell the user if a different section is intended.' );
+            Array.isArray( op.clientIds ) && locks.indexOf( op.clientIds[ 0 ] ) !== -1;
+        if ( dest !== undefined && ! duplicatingLockRoot && ! inScope( dest ) ) {
+            throw new Error( 'out_of_scope: this would land at ' + ( dest === '' ? 'the page root' : dest ) + ', outside the selected container ' + label + ' — insert/move INSIDE it, or tell the user if a different section is intended.' );
         }
     }
 
@@ -595,7 +752,9 @@ s += ' ' + String( v );
 return;
 }
             const hasChildren = blk.innerBlocks && blk.innerBlocks.length > 0;
-            if ( renderedTextOf( blk ) === '' && ! hasChildren ) {
+            // An iframe embed (core/html) carries no text but is the content.
+            const isEmbed = blk.name === 'core/html' && isIframeEmbed( String( ( blk.attributes || {} ).content || '' ) );
+            if ( renderedTextOf( blk ) === '' && ! hasChildren && ! isEmbed ) {
                 throw new Error( 'empty_content:' + ( spec.name || 'block' ) );
             }
         } );
@@ -626,6 +785,7 @@ return;
                 'core/paragraph, …) or embed a real form via { "name": "srfm/form", "attrs": { "id": <formId> } }.'
             );
         }
+        assertSafeContent( spec.name, spec.attributes );
         const inner = ( spec.innerBlocks || [] ).map( function ( s ) {
  return toBlock( s, unknownSink, iconSink );
 } );
@@ -815,7 +975,7 @@ adoptFrom( peer, toKids[ i ] );
         // silently applying.
         order.forEach( function ( id ) {
             liveness( sel, id );
-            assertMutable( sel, id, 'move' );
+            assertMutable( sel, id, 'move', true );
         } );
         // Same omitted-vs-null distinction the move path makes (KEEP_CURRENT_PARENT).
         // Collapsing both to '' re-parented EVERY listed block to the page root, so a
@@ -857,6 +1017,27 @@ adoptFrom( peer, toKids[ i ] );
         if ( dis && typeof dis.__unstableMarkNextChangeAsNotPersistent === 'function' ) {
             dis.__unstableMarkNextChangeAsNotPersistent();
         }
+    }
+
+    // `dis` whose first block-changing call merges into the previous undo level.
+    const COALESCED_ACTIONS = [ 'updateBlockAttributes', 'insertBlocks', 'removeBlocks', 'moveBlocksToPosition',
+        'replaceBlocks', 'replaceInnerBlocks', 'duplicateBlocks' ];
+    function coalescingDispatch( dis ) {
+        let armed = false;
+        const out = Object.create( dis );
+        COALESCED_ACTIONS.forEach( function ( fn ) {
+            if ( typeof dis[ fn ] !== 'function' ) {
+                return;
+            }
+            out[ fn ] = function () {
+                if ( ! armed ) {
+                    armed = true;
+                    markNonPersistent( dis );
+                }
+                return dis[ fn ].apply( dis, arguments );
+            };
+        } );
+        return out;
     }
 
     // H4 — saving is LOCKED while a typewriter stream is live. The persistent
@@ -949,6 +1130,72 @@ return k;
     // a BULK operation (many blocks at once) types CONCURRENTLY off one timer.
     let _twStreams = [];
     let _twTimer = null;
+    let _twIdle = [];
+    // A stream only writes over its OWN last write: once the user types into the
+    // block or undoes the change mid-stream, the live text is theirs.
+    function liveAttrText( sel, id, attr ) {
+        const b = sel.getBlock( id );
+        const v = b && b.attributes ? b.attributes[ attr ] : undefined;
+        // eslint-disable-next-line eqeqeq
+        return v && typeof v.toHTMLString === 'function' ? v.toHTMLString() : String( v == null ? '' : v );
+    }
+    // Compared with what the store HOLDS after the stream's last write, not the
+    // raw text it sent: the store may normalize a partial (an unclosed <strong>).
+    function streamOwnsBlock( st ) {
+        return ! st.sel || ( !! st.sel.getBlock( st.id ) && liveAttrText( st.sel, st.id, st.contentAttr ) === st.held );
+    }
+    function heldText( st ) {
+        return st.sel ? liveAttrText( st.sel, st.id, st.contentAttr ) : st.acc;
+    }
+    function drainTypewriter() {
+        _twStreams = [];
+        _twTimer = null;
+        // H4 — every stream drained: the live attrs hold full text again, so
+        // saving is safe.
+        unlockSavingForTypewriter();
+        const waiters = _twIdle;
+        _twIdle = [];
+        waiters.forEach( function ( f ) {
+            f();
+        } );
+    }
+    // Land every live stream's full text at once (non-persistent, like a tick).
+    function flushTypewriter() {
+        if ( _twTimer ) {
+            clearTimeout( _twTimer );
+        }
+        _twStreams.forEach( function ( st ) {
+            if ( st.i >= st.tokens.length ) {
+                return;
+            }
+            st.i = st.tokens.length;
+            if ( ! streamOwnsBlock( st ) ) {
+                return;
+            }
+            try {
+                markNonPersistent( st.dis );
+                const a = {};
+                a[ st.contentAttr ] = st.tokens.join( '' );
+                st.dis.updateBlockAttributes( st.id, a );
+            } catch ( e ) { /* the persistent full text is already applied */ }
+        } );
+        drainTypewriter();
+    }
+    // The reply waits (bounded) for the type-in, so the brain's next read sees
+    // the full text, never a half-typed prefix. Past the bound the rest lands
+    // at once.
+    function whenTypewriterIdle( maxMs ) {
+        if ( ! _twTimer ) {
+            return Promise.resolve();
+        }
+        return new Promise( function ( resolve ) {
+            const bound = setTimeout( flushTypewriter, maxMs );
+            _twIdle.push( function () {
+                clearTimeout( bound );
+                resolve();
+            } );
+        } );
+    }
     function _twTick() {
         let typing = false;
         for ( let s = 0; s < _twStreams.length; s++ ) {
@@ -959,7 +1206,7 @@ continue;
             // Liveness re-check: the block can vanish mid-stream (a later op in the
             // same plan removed/replaced it, or the user deleted it). Writing to a
             // gone block is a wasted dispatch that can warn — drop the stream.
-            if ( st.sel && ! st.sel.getBlock( st.id ) ) {
+            if ( ! streamOwnsBlock( st ) ) {
  st.i = st.tokens.length; continue;
 }
             // H4 — a throw from updateBlockAttributes must NOT escape the tick:
@@ -974,6 +1221,7 @@ continue;
                 const a = {};
                 a[ st.contentAttr ] = st.acc;
                 st.dis.updateBlockAttributes( st.id, a );
+                st.held = heldText( st );
             } catch ( e ) {
                 console.warn( '[ZIP AI] typewriter stream aborted for block', st.id, e ); // eslint-disable-line no-console -- intentional error surfacing
                 st.i = st.tokens.length; // mark done so the drain path runs
@@ -986,11 +1234,7 @@ typing = true;
         if ( typing ) {
  _twTimer = setTimeout( _twTick, TYPEWRITER_WORD_MS ); return;
 }
-        _twStreams = [];
-        _twTimer = null;
-        // H4 — every stream drained: the live attrs hold full text again, so
-        // saving is safe. (Unlock here, the ONLY drain point.)
-        unlockSavingForTypewriter();
+        drainTypewriter();
     }
 
     // VISUAL typewriter overlay for block `id`'s content attr. The REAL change (the
@@ -1030,7 +1274,9 @@ return;
         clear[ contentAttr ] = '';
         dis.updateBlockAttributes( id, clear );
         lockSavingForTypewriter();
-        _twStreams.push( { dis, sel, id, contentAttr, tokens, i: 0, acc: '' } );
+        const st = { dis, sel, id, contentAttr, tokens, i: 0, acc: '' };
+        st.held = heldText( st );
+        _twStreams.push( st );
         if ( ! _twTimer ) {
 _twTimer = setTimeout( _twTick, TYPEWRITER_WORD_MS );
 }
@@ -1811,6 +2057,7 @@ Array.prototype.push.apply( sink, parts.unknown );
         // (symmetric with the block path, S4/PR#282) so a spectra/* block in resolved
         // markup can't paint a GBS-banned visual attr onto the page + GBS store.
         blocks.forEach( stripBannedAttrsDeep );
+        blocks.forEach( assertSafeParsedTree );
         return blocks;
     }
 
@@ -1824,7 +2071,7 @@ Array.prototype.push.apply( sink, parts.unknown );
             // eslint-disable-next-line eqeqeq
             const mutTargets = op.clientIds || ( op.rootClientId != null ? [ op.rootClientId ] : [] );
             mutTargets.forEach( function ( id ) {
- assertMutable( sel, id, mutKind );
+ assertMutable( sel, id, mutKind, op.function !== 'updateBlockAttributes' );
 } );
         }
         switch ( op.function ) {
@@ -1841,6 +2088,7 @@ Array.prototype.push.apply( sink, parts.unknown );
                 // error, not a half-applied bulk edit.
                 const planned = ids.map( function ( id ) {
                     const blk = sel.getBlock( id );
+                    assertSafeContent( blk.name, op.attributes );
                     const norm = normalizePlanAttrs( blk.name, op.attributes, sinkU, blk.attributes, iconSinkU );
                     // FAIL CLOSED — a plain-text content write must not silently
                     // strip the block's inline formatting (the "make it 4/5" defect).
@@ -2022,6 +2270,7 @@ markNonPersistent( dis );
                     // as insertBlocks.
                     assertEffectiveContent( op.blocks, innerBlocks );
                 }
+                assertAllowedChildren( sel, op.rootClientId, innerBlocks );
                 dis.replaceInnerBlocks( op.rootClientId, innerBlocks );
                 return {
                     new_client_ids: innerBlocks.map( function ( b ) {
@@ -2156,33 +2405,25 @@ newIds.push( id );
 return { success: false, error: 'block_editor_unavailable' };
 }
 
-        const livePostId = currentPostId();
+        // SEC-2 — FAIL CLOSED: this guard is the SOLE protection against applying
+        // a plan to the WRONG open post (a second editor tab). Shared with
+        // set-scripts; a missing shared module cannot verify, so it refuses too.
         const expectedPostId = args && args.post_id;
-        // SEC-2 — FAIL CLOSED. This guard is the SOLE protection against applying a
-        // plan to the WRONG open post (a second editor tab). If the brain stamped an
-        // expected post_id but the live post id can't be resolved, we cannot verify
-        // we are on the right post — refuse rather than apply blind. (Previously this
-        // fell open when livePostId was null, skipping the check entirely.)
+        const u = sharedEditorUtils();
         // eslint-disable-next-line eqeqeq
-        if ( expectedPostId != null && livePostId == null ) {
+        const refusal = u && u.postIdRefusal ? u.postIdRefusal( expectedPostId ) : ( expectedPostId != null
+            ? { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null', live: null }
+            : null );
+        if ( refusal ) {
             return {
                 success: true,
                 data: {
-                    post_id: null, applied: [], failed: [],
-                    refused: { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null' },
+                    post_id: refusal.live, applied: [], failed: [],
+                    refused: { reason: refusal.reason, detail: refusal.detail },
                 },
             };
         }
-        // eslint-disable-next-line eqeqeq
-        if ( expectedPostId != null && livePostId != null && Number( livePostId ) !== Number( expectedPostId ) ) {
-            return {
-                success: true,
-                data: {
-                    post_id: livePostId, applied: [], failed: [],
-                    refused: { reason: 'post_id_mismatch', detail: 'expected=' + expectedPostId + ',live=' + livePostId },
-                },
-            };
-        }
+        const livePostId = currentPostId();
 
         // Subtree scope-lock — enforce ONLY when the brain bound one AND the
         // locked container is still live this turn. A stale lock (selection
@@ -2193,6 +2434,15 @@ return { success: false, error: 'block_editor_unavailable' };
         if ( scopeLock && ! sel.getBlock( scopeLock ) ) {
 scopeLock = null;
 }
+        // A multi-selection locks to its members (the live ones; none live = open).
+        if ( args && Array.isArray( args.scope_lock_ids ) ) {
+            const live = args.scope_lock_ids.filter( function ( id ) {
+ return typeof id === 'string' && id !== '' && !! sel.getBlock( id );
+} );
+            if ( live.length > 0 ) {
+scopeLock = live;
+}
+        }
 
         const ops = ( args && args.operations ) || [];
         const applied = [];
@@ -2235,15 +2485,15 @@ assertWithinScope( sel, op, scopeLock );
                         return { clientId: id, live: !! blk, name: blk && blk.name };
                     } ),
                 } );
-                if ( applied.length > 0 ) {
-markNonPersistent( dis );
-} // undo coalescing → one ⌘Z
                 // SSOT streaming: snapshot operand text BEFORE the op, then stream
                 // whatever text CHANGED or APPEARED after — a pure diff, no check on
                 // op.function. Works for any operation, present or future.
                 const _before = {};
                 snapshotContent( sel, opOperandIds( op ), _before );
-                const res = runOp( sel, dis, op );
+                // Undo coalescing → one ⌘Z: arm it at the op's first dispatch, so
+                // an op that throws first never leaves it armed for the user's
+                // next edit.
+                const res = runOp( sel, applied.length > 0 ? coalescingDispatch( dis ) : dis, op );
                 streamChangedText(
                     dis, sel,
                     opOperandIds( op ).concat( ( res && res.new_client_ids ) || [] ),
@@ -2367,6 +2617,8 @@ entry.impact = res.impact;
             }
             setTimeout( function () {
               liveCssReady.then( function () {
+                return whenTypewriterIdle( 3000 );
+              } ).then( function () {
                 const classNames = [];
                 for ( let a = 0; a < applied.length; a++ ) {
                     const o = ops[ applied[ a ].index ];
@@ -2404,12 +2656,17 @@ entry.impact = res.impact;
         } );
     }
 
-    function handleApplyChange( args ) {
+    function handleApplyChange( args, signal ) {
         // Vibe Editing v2: every apply_change is a serialized execution plan
         // ({ post_id?, operations[] }). runPlan validates the live editor, enforces
         // the post_id two-tab guard, applies each operation in order, and returns
         // per-index applied[] / failed[] with computed-effect no-op detection. There
         // is no other shape — the brain zod emits operations[] only.
+        // The ops dispatch synchronously; what can still write after the
+        // bridge's budget reply is the type-in, so an abort lands it at once.
+        if ( signal && typeof signal.addEventListener === 'function' ) {
+            signal.addEventListener( 'abort', flushTypewriter, { once: true } );
+        }
         return runPlan( args );
     }
 
@@ -2418,8 +2675,8 @@ entry.impact = res.impact;
         if ( window.zipwpMcp && window.zipwpMcp.registerTool ) {
             window.zipwpMcp.registerTool(
                 'editor/apply-change',
-                async function ( args ) {
- return handleApplyChange( args );
+                async function ( args, context ) {
+ return handleApplyChange( args, context && context.signal );
 },
                 { previewMode: 'client' }
             );

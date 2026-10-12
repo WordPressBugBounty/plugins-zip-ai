@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.13
+Stable tag: 0.0.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -190,6 +190,15 @@ Yes. You can clear stored site memory from the plugin. Deleting the plugin also 
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.14 - October 12, 2026 =
+- New: One clear out-of-credits notice, with an Upgrade plan button, wherever a request is refused.
+- Improvement: The colour picker opens on the Hex field, so you can type a colour code straight away.
+- Fix: The page editor keeps your edits through reloads, restyles, a second tab or closing the page.
+- Fix: Vibe Editor edits apply once, only to the blocks you picked, never to shared patterns.
+- Fix: Undo works as expected while typing and after an AI edit.
+- Fix: Skip all ends the brief quiz, and an answer we guessed is marked "Our guess".
+- Fix: Previews and uploads are locked down, keeping your admin session safe.
 
 = 0.0.13 - October 6, 2026 =
 - New: Refine button turns your description into a structured brief; the brief box is now resizable.

@@ -87,9 +87,8 @@ class Media_Service {
 			return new \WP_Error( 'write_failed', 'Failed to write the uploaded file.' );
 		}
 
-		// Verify actual file content matches declared MIME type.
-		$detected_mime = function_exists( 'mime_content_type' ) ? mime_content_type( $temp_file ) : null;
-		if ( $detected_mime && $detected_mime !== $mime_type ) {
+		// The bytes must be the declared image type; fails closed when they are not an image.
+		if ( wp_get_image_mime( $temp_file ) !== $mime_type ) {
 			wp_delete_file( $temp_file );
 			return new \WP_Error( 'mime_mismatch', 'File content does not match the declared MIME type.' );
 		}

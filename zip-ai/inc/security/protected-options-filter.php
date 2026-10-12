@@ -22,8 +22,9 @@
  * `pre_update_option_<key>` filter. Returning a value other than the new value
  * cancels the update.
  *
- * `Rest_Api::handle_mcp_request` toggles the MCP context flag. It sets the flag
- * on entry and clears it on exit. A `register_shutdown_function` handles the
+ * `Rest_Api::handle_mcp_request` and `External_Mcp` (around each tool call on
+ * this plugin's adapter server) toggle the MCP context flag. They set the flag
+ * on entry and clear it on exit. A `register_shutdown_function` handles the
  * abnormal-exit case.
  *
  * Generalization angle

@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.13
- * Build: 2026-10-06 13:41:50
+ * Version: 0.0.14
+ * Build: 2026-10-12 15:39:26
  */
 
 /**
@@ -420,7 +420,15 @@ batches.push( cur );
 return [];
 }
         const out = [];
+        // Locked, shared (synced pattern / template part) and contentOnly blocks
+        // are not Quick Edit targets: the same guard the AI apply path enforces.
+        const shared = window.zipwpEditorShared;
+        const editable = ( id ) => ! ( typeof be.canEditBlock === 'function' && be.canEditBlock( id ) === false ) &&
+            ! ( shared && shared.isAiEditable && ! shared.isAiEditable( be, id ) );
         const visit = ( id ) => {
+            if ( ! editable( id ) ) {
+                return;
+            }
             const name = be.getBlockName( id );
             const attrs = be.getBlockAttributes( id ) || {};
             textFieldsFor( name ).forEach( ( f ) => {
@@ -517,12 +525,14 @@ throw new Error( 'Inline edit unavailable. The import server URL is not configur
             if ( typeof body.user_message === 'string' && body.user_message ) {
                 err.userMessage = body.user_message;
             }
+            err.creditsExhausted = creditsExhausted( body );
             throw err;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
         let errored = null;
+        let erroredCredits = false;
         for ( ;; ) {
             const { done, value } = await reader.read();
             if ( done ) {
@@ -555,12 +565,15 @@ continue;
 onEdit( parsed.id, parsed.text );
 } else if ( event === 'error' ) {
 errored = parsed.error || 'Inline edit failed';
+erroredCredits = creditsExhausted( parsed );
 }
             }
         }
         if ( errored ) {
-throw new Error( errored );
-}
+            const err = new Error( errored );
+            err.creditsExhausted = erroredCredits;
+            throw err;
+        }
     }
 
     // Never surface a raw caught-error `.message` to the user (it can carry
@@ -570,6 +583,22 @@ throw new Error( errored );
     // classic enqueued script and can't import the React app's module.
     function errText( e, fallback ) {
         return ( e && typeof e.userMessage === 'string' && e.userMessage ) ? e.userMessage : fallback;
+    }
+
+    // Out of credits: the brain answers 403 `plan_limit_exceeded` with
+    // `limit_type: credits`. Raise the chat app's own CreditsExhaustedNotice card
+    // (main.jsx publishes its trigger) so every surface shows the same thing.
+    // Returns true when the card took it; false leaves the caller's own error line.
+    function creditsExhausted( body ) {
+        // Same code resolution as request.js `buildRequestError`.
+        const code = body && ( body.error_code || body.code || body.error );
+        if ( code !== 'plan_limit_exceeded' || body.limit_type !== 'credits' ) {
+            return false;
+        }
+        if ( typeof window.zipAiCreditsExhausted !== 'function' ) {
+            return false;
+        }
+        return window.zipAiCreditsExhausted( { code: 'plan_limit_exceeded', limitType: 'credits', userMessage: body.user_message } );
     }
 
     // Generate an image (base64 only — preview before committing to media).
@@ -595,6 +624,7 @@ throw new Error( errored );
         if ( ! res.ok || ! data.success || ! data.base64 ) {
             const err = new Error( data.error || 'image_generation_failed' );
             err.userMessage = data.user_message || data.message || 'Image generation failed';
+            err.creditsExhausted = creditsExhausted( data );
             throw err;
         }
         return { dataUrl: 'data:' + ( data.mime_type || 'image/png' ) + ';base64,' + data.base64 };
@@ -735,7 +765,10 @@ return;
  setGenPreview( dataUrl ); setBusy( false );
 } )
                 .catch( ( e ) => {
- setError( errText( e, 'Couldn’t generate the image. Please try again.' ) ); setBusy( false );
+ if ( ! e.creditsExhausted ) {
+setError( errText( e, 'Couldn’t generate the image. Please try again.' ) );
+}
+ setBusy( false );
 } );
         }, [ imgPrompt, styleChip, ratio ] );
 
@@ -876,7 +909,19 @@ caps = opts.caps;
 } catch ( e ) {}
         }, [] );
 
-        // Abort + clear on unmount.
+        // Saving is locked while a run writes partial text: a save mid-reveal
+        // would store a half-typed field.
+        const saveLockName = 'zipwp-quickedit-' + props.clientId;
+        const setSaveLock = useCallback( ( on ) => {
+            try {
+                const ed = wp.data.dispatch( 'core/editor' );
+                if ( ed && ed.lockPostSaving && ed.unlockPostSaving ) {
+                    ( on ? ed.lockPostSaving : ed.unlockPostSaving )( saveLockName );
+                }
+            } catch ( e ) {}
+        }, [ saveLockName ] );
+
+        // Abort + clear on unmount. The abort also settles a reveal in flight.
         useEffect( () => () => {
             if ( abortRef.current ) {
 abortRef.current.abort();
@@ -884,7 +929,8 @@ abortRef.current.abort();
             if ( timerRef.current ) {
 clearInterval( timerRef.current );
 }
-        }, [] );
+            setSaveLock( false );
+        }, [ setSaveLock ] );
 
         const cancel = useCallback( () => {
  if ( abortRef.current ) {
@@ -932,10 +978,21 @@ notifyError( __( 'This text is too long for ZIP AI to edit in one pass.', 'zip-a
 
             const ac = new AbortController(); abortRef.current = ac;
             setRunning( true );
+            setSaveLock( true );
             const dispatch = wp.data.dispatch( 'core/block-editor' );
             const setText = ( id, field, value ) => {
  const a = {}; a[ field ] = value; dispatch.updateBlockAttributes( id, a );
 };
+            // One undo level per run: only the first final write is persistent,
+            // later ones merge into it.
+            let persisted = false;
+            const persistText = ( id, field, value ) => {
+                if ( persisted ) {
+                    markTransient();
+                }
+                setText( id, field, value );
+                persisted = true;
+            };
             const latest = {}; // key -> final text, buffered per batch
             targets.forEach( ( t ) => setBlockState( t.id, 'pending' ) ); // all waiting → shimmer
             setProgress( { cur: 0, total: targets.length } );
@@ -951,12 +1008,15 @@ notifyError( __( 'This text is too long for ZIP AI to edit in one pass.', 'zip-a
                 // block freezes in that broken state and loses content. Write rich
                 // values in one shot; only plain text gets the typewriter.
                 if ( /<[a-z!/][^>]*>/i.test( full ) ) {
-                    setText( t.id, t.field, full );
+                    persistText( t.id, t.field, full );
                     setBlockState( t.id, 'done' );
                     resolve();
                     return;
                 }
                 let shown = 0;
+                ac.signal.addEventListener( 'abort', () => {
+                    clearInterval( timerRef.current ); timerRef.current = null; resolve();
+                }, { once: true } );
                 timerRef.current = setInterval( () => {
                     if ( ac.signal.aborted ) {
  clearInterval( timerRef.current ); timerRef.current = null; resolve(); return;
@@ -965,7 +1025,7 @@ notifyError( __( 'This text is too long for ZIP AI to edit in one pass.', 'zip-a
                     markTransient(); setText( t.id, t.field, full.slice( 0, shown ) );
                     if ( shown >= full.length ) {
                         clearInterval( timerRef.current ); timerRef.current = null;
-                        setText( t.id, t.field, full ); // persist final
+                        persistText( t.id, t.field, full ); // persist final
                         setBlockState( t.id, 'done' );
                         resolve();
                     }
@@ -1042,10 +1102,14 @@ notifyError( __( 'No changes were needed.', 'zip-ai' ) );
 setBlockState( t.id, null );
 }
 } );
-                    notifyError( errText( e, __( 'ZIP AI couldn’t finish this section. Please try again.', 'zip-ai' ) ) );
+                    if ( ! e.creditsExhausted ) {
+                        notifyError( errText( e, __( 'ZIP AI couldn’t finish this section. Please try again.', 'zip-ai' ) ) );
+                    }
+                } finally {
+                    setSaveLock( false );
                 }
             } )();
-        }, [ props.clientId, markTransient, notifyError ] );
+        }, [ props.clientId, markTransient, notifyError, setSaveLock ] );
 
         // caps null = no ZIP AI affordance for this block (yet) — render the
         // block untouched. Hooks above still run so the type stays mounted.
@@ -1296,4 +1360,9 @@ return;
             '.eqe-credit{font-size:11px;color:var(--ink4);margin-top:11px}';
         document.head.appendChild( s );
     }() );
+
+    // Test-only surface (Node/CommonJS) — inert in the browser bundle.
+    if ( typeof module !== 'undefined' && module.exports ) {
+        module.exports = { collectTargets };
+    }
 }() );

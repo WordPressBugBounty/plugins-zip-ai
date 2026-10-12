@@ -64,6 +64,25 @@
             : null;
     }
 
+    // SEC-2 two-tab guard, shared by every handler that writes the open post: a
+    // brain-stamped post id the live editor cannot confirm is a refusal (fail
+    // closed). Returns null when the write may proceed.
+    function postIdRefusal( expectedPostId ) {
+        // eslint-disable-next-line eqeqeq
+        if ( expectedPostId == null ) {
+            return null;
+        }
+        const live = currentPostId();
+        // eslint-disable-next-line eqeqeq
+        if ( live == null ) {
+            return { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null', live: null };
+        }
+        if ( Number( live ) !== Number( expectedPostId ) ) {
+            return { reason: 'post_id_mismatch', detail: 'expected=' + expectedPostId + ',live=' + live, live };
+        }
+        return null;
+    }
+
     // The live post meta object from the editing session (or {} when absent) —
     // the read side of the session-scoped scripts/styles write.
     function currentMeta( sel ) {
@@ -92,6 +111,51 @@
     function rootClientId( sel ) {
         const order = sel && sel.getBlockOrder ? sel.getBlockOrder() : null;
         return Array.isArray( order ) && order.length > 0 ? order[ 0 ] : null;
+    }
+
+    // canEditBlock reads lock.edit only. Content shared with other pages (a
+    // synced pattern's or template part's inner blocks, an overridable one
+    // included) is off-limits to an AI op even when no lock attribute says so;
+    // the synced pattern / template part block ITSELF stays editable as a page
+    // block. Editing mode follows the editor: 'disabled' takes nothing (in
+    // zoom-out, every block below a section), 'contentOnly' (an inserted
+    // pattern's blocks, a focused section, a section in zoom-out) takes
+    // attribute and text edits but no structural change.
+    const SHARED_CONTENT_HOSTS = { 'core/block': true, 'core/template-part': true };
+    function insideSharedContent( sel, id ) {
+        if ( typeof sel.getBlockParents !== 'function' ) {
+            return false;
+        }
+        return ( sel.getBlockParents( id ) || [] ).some( function ( p ) {
+            const b = sel.getBlock( p );
+            return !! ( b && SHARED_CONTENT_HOSTS[ b.name ] );
+        } );
+    }
+    // `structural` = insert / remove / move / replace (anything but an edit of
+    // the block's own attributes).
+    function isAiEditable( sel, id, structural ) {
+        if ( insideSharedContent( sel, id ) ) {
+            return false;
+        }
+        const mode = typeof sel.getBlockEditingMode === 'function' ? sel.getBlockEditingMode( id ) : 'default';
+        if ( mode === 'disabled' ) {
+            return false;
+        }
+        return ! ( structural && mode === 'contentOnly' );
+    }
+    // A container accepts AI-added (or moved-in) children unless it is shared
+    // content, sits inside it, or is disabled. A contentOnly root still takes
+    // them, as in core: with "Show template" on, core/post-content itself is
+    // contentOnly and every page section lives under it.
+    function isAiInsertableRoot( sel, root ) {
+        if ( ! root ) {
+            return true;
+        }
+        const b = sel.getBlock( root );
+        if ( b && SHARED_CONTENT_HOSTS[ b.name ] ) {
+            return false;
+        }
+        return isAiEditable( sel, root, false );
     }
 
     // The 13 GBS-banned per-block visual styling props. Per-block styling lives in
@@ -519,12 +583,15 @@ return;
         window.zipwpEditorShared.createSectionGbsSaver = createSectionGbsSaver;
         window.zipwpEditorShared.queueSectionGbsForSave = queueSectionGbsForSave;
         window.zipwpEditorShared.currentPostId = currentPostId;
+        window.zipwpEditorShared.postIdRefusal = postIdRefusal;
         window.zipwpEditorShared.editorSelect = editorSelect;
         window.zipwpEditorShared.editorDispatch = editorDispatch;
         window.zipwpEditorShared.currentMeta = currentMeta;
         window.zipwpEditorShared.blockEditorSelect = blockEditorSelect;
         window.zipwpEditorShared.blockEditorDispatch = blockEditorDispatch;
         window.zipwpEditorShared.rootClientId = rootClientId;
+        window.zipwpEditorShared.isAiEditable = isAiEditable;
+        window.zipwpEditorShared.isAiInsertableRoot = isAiInsertableRoot;
         window.zipwpEditorShared.bannedVisualAttrs = bannedVisualAttrs;
         window.zipwpEditorShared.isBannedVisualAttr = isBannedVisualAttr;
         window.zipwpEditorShared.isJsCapable = isJsCapable;
@@ -542,6 +609,7 @@ return;
             createSectionGbsSaver,
             queueSectionGbsForSave,
             currentPostId,
+            postIdRefusal,
             editorSelect,
             editorDispatch,
             currentMeta,
@@ -552,6 +620,8 @@ return;
             classDependents,
             anchorDependents,
             rootClientId,
+            isAiEditable,
+            isAiInsertableRoot,
             bannedVisualAttrs,
             isBannedVisualAttr,
         };

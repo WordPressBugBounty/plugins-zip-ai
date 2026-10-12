@@ -116,17 +116,17 @@ return null;
     }
 
     // Decode HTML entities + strip tags + collapse whitespace — for the AUTHORED
-    // attr, which may carry entities/markup. A detached element (cached, plain
-    // `document` — decoding is document-agnostic) does the exact decode the browser
-    // does; under jest (no DOM) it degrades to a tag strip. Pairs with collapseWs
-    // so authored + rendered compare like-for-like — entity/markup/whitespace
+    // attr, which may carry entities/markup. An element of an inert document
+    // (cached; no browsing context, so nothing in the markup runs or loads) does
+    // the exact decode the browser does; under jest (no DOM) it degrades to a
+    // tag strip. Pairs with collapseWs so authored + rendered compare like-for-like — entity/markup/whitespace
     // differences never cause a false divergence.
     let _decodeEl = null;
     function normContent( s ) {
         let str = s === null || s === undefined ? '' : String( s );
         try {
             if ( _decodeEl === null ) {
-_decodeEl = document.createElement( 'div' );
+_decodeEl = document.implementation.createHTMLDocument( '' ).body;
 }
             _decodeEl.innerHTML = str;
             str = _decodeEl.textContent || '';

@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.13
- * Build: 2026-10-06 13:41:50
+ * Version: 0.0.14
+ * Build: 2026-10-12 15:39:26
  */
 
 /**
@@ -751,6 +751,25 @@ return false;
             : null;
     }
 
+    // SEC-2 two-tab guard, shared by every handler that writes the open post: a
+    // brain-stamped post id the live editor cannot confirm is a refusal (fail
+    // closed). Returns null when the write may proceed.
+    function postIdRefusal( expectedPostId ) {
+        // eslint-disable-next-line eqeqeq
+        if ( expectedPostId == null ) {
+            return null;
+        }
+        const live = currentPostId();
+        // eslint-disable-next-line eqeqeq
+        if ( live == null ) {
+            return { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null', live: null };
+        }
+        if ( Number( live ) !== Number( expectedPostId ) ) {
+            return { reason: 'post_id_mismatch', detail: 'expected=' + expectedPostId + ',live=' + live, live };
+        }
+        return null;
+    }
+
     // The live post meta object from the editing session (or {} when absent) —
     // the read side of the session-scoped scripts/styles write.
     function currentMeta( sel ) {
@@ -779,6 +798,51 @@ return false;
     function rootClientId( sel ) {
         const order = sel && sel.getBlockOrder ? sel.getBlockOrder() : null;
         return Array.isArray( order ) && order.length > 0 ? order[ 0 ] : null;
+    }
+
+    // canEditBlock reads lock.edit only. Content shared with other pages (a
+    // synced pattern's or template part's inner blocks, an overridable one
+    // included) is off-limits to an AI op even when no lock attribute says so;
+    // the synced pattern / template part block ITSELF stays editable as a page
+    // block. Editing mode follows the editor: 'disabled' takes nothing (in
+    // zoom-out, every block below a section), 'contentOnly' (an inserted
+    // pattern's blocks, a focused section, a section in zoom-out) takes
+    // attribute and text edits but no structural change.
+    const SHARED_CONTENT_HOSTS = { 'core/block': true, 'core/template-part': true };
+    function insideSharedContent( sel, id ) {
+        if ( typeof sel.getBlockParents !== 'function' ) {
+            return false;
+        }
+        return ( sel.getBlockParents( id ) || [] ).some( function ( p ) {
+            const b = sel.getBlock( p );
+            return !! ( b && SHARED_CONTENT_HOSTS[ b.name ] );
+        } );
+    }
+    // `structural` = insert / remove / move / replace (anything but an edit of
+    // the block's own attributes).
+    function isAiEditable( sel, id, structural ) {
+        if ( insideSharedContent( sel, id ) ) {
+            return false;
+        }
+        const mode = typeof sel.getBlockEditingMode === 'function' ? sel.getBlockEditingMode( id ) : 'default';
+        if ( mode === 'disabled' ) {
+            return false;
+        }
+        return ! ( structural && mode === 'contentOnly' );
+    }
+    // A container accepts AI-added (or moved-in) children unless it is shared
+    // content, sits inside it, or is disabled. A contentOnly root still takes
+    // them, as in core: with "Show template" on, core/post-content itself is
+    // contentOnly and every page section lives under it.
+    function isAiInsertableRoot( sel, root ) {
+        if ( ! root ) {
+            return true;
+        }
+        const b = sel.getBlock( root );
+        if ( b && SHARED_CONTENT_HOSTS[ b.name ] ) {
+            return false;
+        }
+        return isAiEditable( sel, root, false );
     }
 
     // The 13 GBS-banned per-block visual styling props. Per-block styling lives in
@@ -1206,12 +1270,15 @@ return;
         window.zipwpEditorShared.createSectionGbsSaver = createSectionGbsSaver;
         window.zipwpEditorShared.queueSectionGbsForSave = queueSectionGbsForSave;
         window.zipwpEditorShared.currentPostId = currentPostId;
+        window.zipwpEditorShared.postIdRefusal = postIdRefusal;
         window.zipwpEditorShared.editorSelect = editorSelect;
         window.zipwpEditorShared.editorDispatch = editorDispatch;
         window.zipwpEditorShared.currentMeta = currentMeta;
         window.zipwpEditorShared.blockEditorSelect = blockEditorSelect;
         window.zipwpEditorShared.blockEditorDispatch = blockEditorDispatch;
         window.zipwpEditorShared.rootClientId = rootClientId;
+        window.zipwpEditorShared.isAiEditable = isAiEditable;
+        window.zipwpEditorShared.isAiInsertableRoot = isAiInsertableRoot;
         window.zipwpEditorShared.bannedVisualAttrs = bannedVisualAttrs;
         window.zipwpEditorShared.isBannedVisualAttr = isBannedVisualAttr;
         window.zipwpEditorShared.isJsCapable = isJsCapable;
@@ -1229,6 +1296,7 @@ return;
             createSectionGbsSaver,
             queueSectionGbsForSave,
             currentPostId,
+            postIdRefusal,
             editorSelect,
             editorDispatch,
             currentMeta,
@@ -1239,6 +1307,8 @@ return;
             classDependents,
             anchorDependents,
             rootClientId,
+            isAiEditable,
+            isAiInsertableRoot,
             bannedVisualAttrs,
             isBannedVisualAttr,
         };
@@ -1311,6 +1381,145 @@ console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling
         return clean;
     }
 
+    // C5 — AI-authored block content never carries executable markup: no
+    // core/html block, no <script>, no inline on* handler, no script URL.
+    // Page JS goes through set_scripts. core/html is kept only as the
+    // converter's embed: exactly one bare https <iframe> (maps, video).
+    //
+    // Markup is read the way the browser will read it: parsed in an inert
+    // document (no browsing context, so nothing runs or loads), never matched
+    // with a regex. Rich-text strings are HTML fragments and parse as such.
+    function inertBody( html ) {
+        const doc = document.implementation.createHTMLDocument( '' );
+        doc.body.innerHTML = html;
+        return doc.body;
+    }
+    function urlProtocol( value ) {
+        try {
+            return new URL( String( value ), 'https://x.invalid' ).protocol;
+        } catch ( e ) {
+            return '';
+        }
+    }
+    const MARKUP_URL_ATTRS = [ 'href', 'src', 'action', 'formaction', 'xlink:href', 'to', 'from', 'values' ];
+    // noscript parses as markup here but as raw text on a live page, so its
+    // contents cannot be read the way the browser will read them.
+    const UNSAFE_TAGS = {
+        script: true, object: true, embed: true, base: true, meta: true,
+        noscript: true, template: true, style: true, link: true, form: true, xmp: true,
+    };
+    function unsafeUrlAttr( tag, name, value ) {
+        const proto = urlProtocol( value );
+        if ( proto === 'javascript:' || proto === 'vbscript:' ) {
+            return true;
+        }
+        // data: only as an image source on an element that cannot run it.
+        return proto === 'data:' && ! ( name === 'src' && tag !== 'iframe' && tag !== 'frame' &&
+            /^\s*data:image\//i.test( value ) );
+    }
+    // An <iframe> is allowed only as the core/html embed (allowIframe).
+    function unsafeElements( root, allowIframe ) {
+        const els = root.querySelectorAll( '*' );
+        for ( let i = 0; i < els.length; i++ ) {
+            const el = els[ i ];
+            const tag = el.tagName.toLowerCase();
+            if ( UNSAFE_TAGS[ tag ] || ( tag === 'iframe' && ! allowIframe ) ) {
+                return true;
+            }
+            for ( let j = 0; j < el.attributes.length; j++ ) {
+                const n = el.attributes[ j ].name.toLowerCase();
+                if ( /^on/.test( n ) || n === 'srcdoc' ||
+                    ( MARKUP_URL_ATTRS.indexOf( n ) !== -1 && unsafeUrlAttr( tag, n, el.attributes[ j ].value ) ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    function markupIsUnsafe( html, allowIframe ) {
+        return typeof html === 'string' && html.indexOf( '<' ) !== -1 && unsafeElements( inertBody( html ), allowIframe );
+    }
+    function isEventHandlerKey( k ) {
+        return /^on[a-z]+$/i.test( k ) && typeof window !== 'undefined' && !! window.HTMLElement &&
+            k.toLowerCase() in window.HTMLElement.prototype;
+    }
+    function unsafeValue( v, depth, allowIframe ) {
+        if ( typeof v === 'string' ) {
+            return markupIsUnsafe( v, allowIframe );
+        }
+        if ( ! v || typeof v !== 'object' || depth > 8 ) {
+            return false;
+        }
+        if ( typeof v.toHTMLString === 'function' ) {
+            return markupIsUnsafe( v.toHTMLString(), allowIframe );
+        }
+        return Object.keys( v ).some( function ( k ) {
+            // A URL-valued attr (linkURL, href, url, src…) holding a script URL.
+            if ( typeof v[ k ] === 'string' && /url|href|link|src/i.test( k ) ) {
+                const proto = urlProtocol( v[ k ] );
+                if ( proto === 'javascript:' || proto === 'vbscript:' ) {
+                    return true;
+                }
+            }
+            return isEventHandlerKey( k ) || unsafeValue( v[ k ], depth + 1, allowIframe );
+        } );
+    }
+    // Exactly one bare https <iframe>: no other node beside it but whitespace,
+    // no srcdoc / on* attribute, and only EMBED_ALLOW features in `allow`.
+    const EMBED_ALLOW = {
+        autoplay: true, 'encrypted-media': true, 'picture-in-picture': true, fullscreen: true,
+        accelerometer: true, gyroscope: true, 'clipboard-write': true, 'web-share': true,
+    };
+    function embedAllowOk( allow ) {
+        return String( allow || '' ).split( ';' ).every( function ( d ) {
+            const feature = d.trim().split( /\s+/ )[ 0 ].toLowerCase();
+            return feature === '' || EMBED_ALLOW[ feature ] === true;
+        } );
+    }
+    function isIframeEmbed( html ) {
+        const body = inertBody( html );
+        const el = body.firstElementChild;
+        if ( body.childElementCount !== 1 || el.tagName !== 'IFRAME' || el.childElementCount !== 0 ) {
+            return false;
+        }
+        for ( let i = 0; i < body.childNodes.length; i++ ) {
+            const n = body.childNodes[ i ];
+            if ( n !== el && ! ( n.nodeType === 3 && n.textContent.trim() === '' ) ) {
+                return false;
+            }
+        }
+        for ( let j = 0; j < el.attributes.length; j++ ) {
+            const n = el.attributes[ j ].name.toLowerCase();
+            if ( /^on/.test( n ) || n === 'srcdoc' ) {
+                return false;
+            }
+        }
+        let proto = '';
+        try {
+            proto = new URL( el.getAttribute( 'src' ) || '' ).protocol;
+        } catch ( e ) {
+            return false;
+        }
+        return proto === 'https:' && embedAllowOk( el.getAttribute( 'allow' ) );
+    }
+    function assertSafeContent( name, attributes ) {
+        const html = attributes && attributes.content;
+        // eslint-disable-next-line eqeqeq
+        if ( name === 'core/html' && html != null && html !== '' && ! isIframeEmbed( String( html ) ) ) {
+            throw new Error( 'unsafe_content: core/html is not allowed. Build the content from registered blocks.' );
+        }
+        if ( unsafeValue( attributes, 0, name === 'core/html' ) ) {
+            throw new Error( 'unsafe_content: ' + name + ' carries a <script>, <style>, <link>, <form>, <noscript>, <template> or <iframe>, an inline on* handler or a javascript: URL. Page JS goes through set_scripts.' );
+        }
+    }
+    function assertSafeParsedTree( block ) {
+        assertSafeContent( block.name, block.attributes );
+        if ( markupIsUnsafe( block.originalContent, block.name === 'core/html' ) ) {
+            throw new Error( 'unsafe_content: ' + block.name + ' carries a <script>, <style>, <link>, <form>, <noscript>, <template> or <iframe>, an inline on* handler or a javascript: URL.' );
+        }
+        ( block.innerBlocks || [] ).forEach( assertSafeParsedTree );
+    }
+
     // Recursively strip banned visual attrs from an already-PARSED block tree
     // (wp.blocks.parse output). The section_markup insert path bypasses toBlock,
     // so this is where the block path's per-block stripBannedAttrs is reapplied —
@@ -1378,7 +1587,7 @@ throw new Error( 'stale_client_id:' + id );
         replaceInnerBlocks: 'edit',
         moveBlocksToPosition: 'move',
     };
-    function assertMutable( sel, id, kind ) {
+    function assertMutable( sel, id, kind, structural ) {
         if ( ! id || ! sel.getBlock( id ) ) {
 return;
 } // stale / missing — liveness owns that miss
@@ -1388,6 +1597,20 @@ return;
         if ( typeof can === 'function' && can.call( sel, id ) === false ) {
             throw new Error( 'locked_block:' + id );
         }
+        if ( ! isAiEditable( sel, id, structural ) ) {
+            throw new Error( 'locked_block:' + id );
+        }
+    }
+
+    // Shared-content / editing-mode guard (editor-shared-utils, also read by
+    // set-scripts and Quick Edit). Missing module → allow, like the lock guards.
+    function isAiEditable( sel, id, structural ) {
+        const u = sharedEditorUtils();
+        return u && u.isAiEditable ? u.isAiEditable( sel, id, structural ) : true;
+    }
+    function isAiInsertableRoot( sel, root ) {
+        const u = sharedEditorUtils();
+        return u && u.isAiInsertableRoot ? u.isAiInsertableRoot( sel, root ) : true;
     }
 
     // Insert-time lock guard (GBR-2): insertBlocks / duplicateBlocks ADD a block to
@@ -1398,12 +1621,9 @@ return;
     // the brain surfaces it instead of relying on the dispatch to reject. Degrades
     // to ALLOW when the selector is absent (older Gutenberg) — never a false block.
     function assertInsertable( sel, root ) {
-        if ( typeof sel.getTemplateLock !== 'function' ) {
-return;
-}
         // eslint-disable-next-line eqeqeq
-        const lock = sel.getTemplateLock( root == null ? '' : root );
-        if ( lock === 'all' || lock === 'insert' ) {
+        const lock = typeof sel.getTemplateLock === 'function' ? sel.getTemplateLock( root == null ? '' : root ) : false;
+        if ( lock === 'all' || lock === 'insert' || lock === 'contentOnly' || ! isAiInsertableRoot( sel, root ) ) {
             throw new Error( 'locked_block:' + ( root || 'root' ) );
         }
     }
@@ -1468,11 +1688,9 @@ continue;
     // PERMITS moving existing children, so only 'all' blocks a move-in here.
     // Same degrade-to-ALLOW posture as assertInsertable.
     function assertMoveDestination( sel, root ) {
-        if ( typeof sel.getTemplateLock !== 'function' ) {
-return;
-}
         // eslint-disable-next-line eqeqeq
-        if ( sel.getTemplateLock( root == null ? '' : root ) === 'all' ) {
+        const lock = typeof sel.getTemplateLock === 'function' ? sel.getTemplateLock( root == null ? '' : root ) : false;
+        if ( lock === 'all' || lock === 'contentOnly' || ! isAiInsertableRoot( sel, root ) ) {
             throw new Error( 'locked_block:' + ( root || 'root' ) );
         }
     }
@@ -1584,6 +1802,8 @@ return '';
         }
         return undefined; // op has no destination-shaped field
     }
+    // `lockId` is one container clientId, or the members of a multi-selection:
+    // an id is in scope when it sits in ANY member's subtree.
     function assertWithinScope( sel, op, lockId ) {
         // Applying a PICKED section — the brain stamps `section_add` on every op
         // whose section_ref it resolved, whether that lands as a page-level ADD
@@ -1593,18 +1813,25 @@ return '';
         // so a click elsewhere while the previews rendered must not redirect the
         // replace. Narrow by design — the marker rides only a brain-resolved ref;
         // free-hand edits, moves, and inline-`blocks` inserts stay confined.
-        if ( ! lockId || SCOPE_EXEMPT_FUNCTIONS[ op.function ] || op.section_add === true ) {
+        const locks = Array.isArray( lockId ) ? lockId : ( lockId ? [ lockId ] : [] );
+        if ( locks.length === 0 || SCOPE_EXEMPT_FUNCTIONS[ op.function ] || op.section_add === true ) {
 return;
 }
+        const inScope = function ( id ) {
+            return locks.some( function ( l ) {
+ return isWithinScope( sel, id, l );
+} );
+        };
+        const label = locks.join( ', ' );
         const ids = scopeGoverningIds( op );
         if ( ids.length === 0 ) {
             // A mutating op with no resolved target = a page-root op (e.g. insert
             // at root). That lands OUTSIDE the selected container.
-            throw new Error( 'out_of_scope: this edit has no in-section target (it would land at the page root), but you are scoped to the selected container ' + lockId + ' — insert/edit INSIDE it, or tell the user if a different section is intended.' );
+            throw new Error( 'out_of_scope: this edit has no in-section target (it would land at the page root), but you are scoped to the selected container ' + label + ' — insert/edit INSIDE it, or tell the user if a different section is intended.' );
         }
         for ( let i = 0; i < ids.length; i++ ) {
-            if ( ! isWithinScope( sel, ids[ i ], lockId ) ) {
-                throw new Error( 'out_of_scope: target ' + ids[ i ] + ' is outside the selected container ' + lockId + ' (and its children). You are scoped to that section — edit inside it, or tell the user if a different section is intended.' );
+            if ( ! inScope( ids[ i ] ) ) {
+                throw new Error( 'out_of_scope: target ' + ids[ i ] + ' is outside the selected container ' + label + ' (and its children). You are scoped to that section — edit inside it, or tell the user if a different section is intended.' );
             }
         }
         const dest = resolvedDestinationOf( sel, op );
@@ -1615,9 +1842,9 @@ return;
         // resolvedDestinationOf derives `dest`); every other out-of-scope
         // destination — a DIFFERENT block copied outside — still throws.
         const duplicatingLockRoot = op.function === 'duplicateBlocks' &&
-            Array.isArray( op.clientIds ) && op.clientIds[ 0 ] === lockId;
-        if ( dest !== undefined && ! duplicatingLockRoot && ! isWithinScope( sel, dest, lockId ) ) {
-            throw new Error( 'out_of_scope: this would land at ' + ( dest === '' ? 'the page root' : dest ) + ', outside the selected container ' + lockId + ' — insert/move INSIDE it, or tell the user if a different section is intended.' );
+            Array.isArray( op.clientIds ) && locks.indexOf( op.clientIds[ 0 ] ) !== -1;
+        if ( dest !== undefined && ! duplicatingLockRoot && ! inScope( dest ) ) {
+            throw new Error( 'out_of_scope: this would land at ' + ( dest === '' ? 'the page root' : dest ) + ', outside the selected container ' + label + ' — insert/move INSIDE it, or tell the user if a different section is intended.' );
         }
     }
 
@@ -1843,7 +2070,9 @@ s += ' ' + String( v );
 return;
 }
             const hasChildren = blk.innerBlocks && blk.innerBlocks.length > 0;
-            if ( renderedTextOf( blk ) === '' && ! hasChildren ) {
+            // An iframe embed (core/html) carries no text but is the content.
+            const isEmbed = blk.name === 'core/html' && isIframeEmbed( String( ( blk.attributes || {} ).content || '' ) );
+            if ( renderedTextOf( blk ) === '' && ! hasChildren && ! isEmbed ) {
                 throw new Error( 'empty_content:' + ( spec.name || 'block' ) );
             }
         } );
@@ -1874,6 +2103,7 @@ return;
                 'core/paragraph, …) or embed a real form via { "name": "srfm/form", "attrs": { "id": <formId> } }.'
             );
         }
+        assertSafeContent( spec.name, spec.attributes );
         const inner = ( spec.innerBlocks || [] ).map( function ( s ) {
  return toBlock( s, unknownSink, iconSink );
 } );
@@ -2063,7 +2293,7 @@ adoptFrom( peer, toKids[ i ] );
         // silently applying.
         order.forEach( function ( id ) {
             liveness( sel, id );
-            assertMutable( sel, id, 'move' );
+            assertMutable( sel, id, 'move', true );
         } );
         // Same omitted-vs-null distinction the move path makes (KEEP_CURRENT_PARENT).
         // Collapsing both to '' re-parented EVERY listed block to the page root, so a
@@ -2105,6 +2335,27 @@ adoptFrom( peer, toKids[ i ] );
         if ( dis && typeof dis.__unstableMarkNextChangeAsNotPersistent === 'function' ) {
             dis.__unstableMarkNextChangeAsNotPersistent();
         }
+    }
+
+    // `dis` whose first block-changing call merges into the previous undo level.
+    const COALESCED_ACTIONS = [ 'updateBlockAttributes', 'insertBlocks', 'removeBlocks', 'moveBlocksToPosition',
+        'replaceBlocks', 'replaceInnerBlocks', 'duplicateBlocks' ];
+    function coalescingDispatch( dis ) {
+        let armed = false;
+        const out = Object.create( dis );
+        COALESCED_ACTIONS.forEach( function ( fn ) {
+            if ( typeof dis[ fn ] !== 'function' ) {
+                return;
+            }
+            out[ fn ] = function () {
+                if ( ! armed ) {
+                    armed = true;
+                    markNonPersistent( dis );
+                }
+                return dis[ fn ].apply( dis, arguments );
+            };
+        } );
+        return out;
     }
 
     // H4 — saving is LOCKED while a typewriter stream is live. The persistent
@@ -2197,6 +2448,72 @@ return k;
     // a BULK operation (many blocks at once) types CONCURRENTLY off one timer.
     let _twStreams = [];
     let _twTimer = null;
+    let _twIdle = [];
+    // A stream only writes over its OWN last write: once the user types into the
+    // block or undoes the change mid-stream, the live text is theirs.
+    function liveAttrText( sel, id, attr ) {
+        const b = sel.getBlock( id );
+        const v = b && b.attributes ? b.attributes[ attr ] : undefined;
+        // eslint-disable-next-line eqeqeq
+        return v && typeof v.toHTMLString === 'function' ? v.toHTMLString() : String( v == null ? '' : v );
+    }
+    // Compared with what the store HOLDS after the stream's last write, not the
+    // raw text it sent: the store may normalize a partial (an unclosed <strong>).
+    function streamOwnsBlock( st ) {
+        return ! st.sel || ( !! st.sel.getBlock( st.id ) && liveAttrText( st.sel, st.id, st.contentAttr ) === st.held );
+    }
+    function heldText( st ) {
+        return st.sel ? liveAttrText( st.sel, st.id, st.contentAttr ) : st.acc;
+    }
+    function drainTypewriter() {
+        _twStreams = [];
+        _twTimer = null;
+        // H4 — every stream drained: the live attrs hold full text again, so
+        // saving is safe.
+        unlockSavingForTypewriter();
+        const waiters = _twIdle;
+        _twIdle = [];
+        waiters.forEach( function ( f ) {
+            f();
+        } );
+    }
+    // Land every live stream's full text at once (non-persistent, like a tick).
+    function flushTypewriter() {
+        if ( _twTimer ) {
+            clearTimeout( _twTimer );
+        }
+        _twStreams.forEach( function ( st ) {
+            if ( st.i >= st.tokens.length ) {
+                return;
+            }
+            st.i = st.tokens.length;
+            if ( ! streamOwnsBlock( st ) ) {
+                return;
+            }
+            try {
+                markNonPersistent( st.dis );
+                const a = {};
+                a[ st.contentAttr ] = st.tokens.join( '' );
+                st.dis.updateBlockAttributes( st.id, a );
+            } catch ( e ) { /* the persistent full text is already applied */ }
+        } );
+        drainTypewriter();
+    }
+    // The reply waits (bounded) for the type-in, so the brain's next read sees
+    // the full text, never a half-typed prefix. Past the bound the rest lands
+    // at once.
+    function whenTypewriterIdle( maxMs ) {
+        if ( ! _twTimer ) {
+            return Promise.resolve();
+        }
+        return new Promise( function ( resolve ) {
+            const bound = setTimeout( flushTypewriter, maxMs );
+            _twIdle.push( function () {
+                clearTimeout( bound );
+                resolve();
+            } );
+        } );
+    }
     function _twTick() {
         let typing = false;
         for ( let s = 0; s < _twStreams.length; s++ ) {
@@ -2207,7 +2524,7 @@ continue;
             // Liveness re-check: the block can vanish mid-stream (a later op in the
             // same plan removed/replaced it, or the user deleted it). Writing to a
             // gone block is a wasted dispatch that can warn — drop the stream.
-            if ( st.sel && ! st.sel.getBlock( st.id ) ) {
+            if ( ! streamOwnsBlock( st ) ) {
  st.i = st.tokens.length; continue;
 }
             // H4 — a throw from updateBlockAttributes must NOT escape the tick:
@@ -2222,6 +2539,7 @@ continue;
                 const a = {};
                 a[ st.contentAttr ] = st.acc;
                 st.dis.updateBlockAttributes( st.id, a );
+                st.held = heldText( st );
             } catch ( e ) {
                 console.warn( '[ZIP AI] typewriter stream aborted for block', st.id, e ); // eslint-disable-line no-console -- intentional error surfacing
                 st.i = st.tokens.length; // mark done so the drain path runs
@@ -2234,11 +2552,7 @@ typing = true;
         if ( typing ) {
  _twTimer = setTimeout( _twTick, TYPEWRITER_WORD_MS ); return;
 }
-        _twStreams = [];
-        _twTimer = null;
-        // H4 — every stream drained: the live attrs hold full text again, so
-        // saving is safe. (Unlock here, the ONLY drain point.)
-        unlockSavingForTypewriter();
+        drainTypewriter();
     }
 
     // VISUAL typewriter overlay for block `id`'s content attr. The REAL change (the
@@ -2278,7 +2592,9 @@ return;
         clear[ contentAttr ] = '';
         dis.updateBlockAttributes( id, clear );
         lockSavingForTypewriter();
-        _twStreams.push( { dis, sel, id, contentAttr, tokens, i: 0, acc: '' } );
+        const st = { dis, sel, id, contentAttr, tokens, i: 0, acc: '' };
+        st.held = heldText( st );
+        _twStreams.push( st );
         if ( ! _twTimer ) {
 _twTimer = setTimeout( _twTick, TYPEWRITER_WORD_MS );
 }
@@ -3059,6 +3375,7 @@ Array.prototype.push.apply( sink, parts.unknown );
         // (symmetric with the block path, S4/PR#282) so a spectra/* block in resolved
         // markup can't paint a GBS-banned visual attr onto the page + GBS store.
         blocks.forEach( stripBannedAttrsDeep );
+        blocks.forEach( assertSafeParsedTree );
         return blocks;
     }
 
@@ -3072,7 +3389,7 @@ Array.prototype.push.apply( sink, parts.unknown );
             // eslint-disable-next-line eqeqeq
             const mutTargets = op.clientIds || ( op.rootClientId != null ? [ op.rootClientId ] : [] );
             mutTargets.forEach( function ( id ) {
- assertMutable( sel, id, mutKind );
+ assertMutable( sel, id, mutKind, op.function !== 'updateBlockAttributes' );
 } );
         }
         switch ( op.function ) {
@@ -3089,6 +3406,7 @@ Array.prototype.push.apply( sink, parts.unknown );
                 // error, not a half-applied bulk edit.
                 const planned = ids.map( function ( id ) {
                     const blk = sel.getBlock( id );
+                    assertSafeContent( blk.name, op.attributes );
                     const norm = normalizePlanAttrs( blk.name, op.attributes, sinkU, blk.attributes, iconSinkU );
                     // FAIL CLOSED — a plain-text content write must not silently
                     // strip the block's inline formatting (the "make it 4/5" defect).
@@ -3270,6 +3588,7 @@ markNonPersistent( dis );
                     // as insertBlocks.
                     assertEffectiveContent( op.blocks, innerBlocks );
                 }
+                assertAllowedChildren( sel, op.rootClientId, innerBlocks );
                 dis.replaceInnerBlocks( op.rootClientId, innerBlocks );
                 return {
                     new_client_ids: innerBlocks.map( function ( b ) {
@@ -3404,33 +3723,25 @@ newIds.push( id );
 return { success: false, error: 'block_editor_unavailable' };
 }
 
-        const livePostId = currentPostId();
+        // SEC-2 — FAIL CLOSED: this guard is the SOLE protection against applying
+        // a plan to the WRONG open post (a second editor tab). Shared with
+        // set-scripts; a missing shared module cannot verify, so it refuses too.
         const expectedPostId = args && args.post_id;
-        // SEC-2 — FAIL CLOSED. This guard is the SOLE protection against applying a
-        // plan to the WRONG open post (a second editor tab). If the brain stamped an
-        // expected post_id but the live post id can't be resolved, we cannot verify
-        // we are on the right post — refuse rather than apply blind. (Previously this
-        // fell open when livePostId was null, skipping the check entirely.)
+        const u = sharedEditorUtils();
         // eslint-disable-next-line eqeqeq
-        if ( expectedPostId != null && livePostId == null ) {
+        const refusal = u && u.postIdRefusal ? u.postIdRefusal( expectedPostId ) : ( expectedPostId != null
+            ? { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null', live: null }
+            : null );
+        if ( refusal ) {
             return {
                 success: true,
                 data: {
-                    post_id: null, applied: [], failed: [],
-                    refused: { reason: 'post_id_unresolvable', detail: 'expected=' + expectedPostId + ',live=null' },
+                    post_id: refusal.live, applied: [], failed: [],
+                    refused: { reason: refusal.reason, detail: refusal.detail },
                 },
             };
         }
-        // eslint-disable-next-line eqeqeq
-        if ( expectedPostId != null && livePostId != null && Number( livePostId ) !== Number( expectedPostId ) ) {
-            return {
-                success: true,
-                data: {
-                    post_id: livePostId, applied: [], failed: [],
-                    refused: { reason: 'post_id_mismatch', detail: 'expected=' + expectedPostId + ',live=' + livePostId },
-                },
-            };
-        }
+        const livePostId = currentPostId();
 
         // Subtree scope-lock — enforce ONLY when the brain bound one AND the
         // locked container is still live this turn. A stale lock (selection
@@ -3441,6 +3752,15 @@ return { success: false, error: 'block_editor_unavailable' };
         if ( scopeLock && ! sel.getBlock( scopeLock ) ) {
 scopeLock = null;
 }
+        // A multi-selection locks to its members (the live ones; none live = open).
+        if ( args && Array.isArray( args.scope_lock_ids ) ) {
+            const live = args.scope_lock_ids.filter( function ( id ) {
+ return typeof id === 'string' && id !== '' && !! sel.getBlock( id );
+} );
+            if ( live.length > 0 ) {
+scopeLock = live;
+}
+        }
 
         const ops = ( args && args.operations ) || [];
         const applied = [];
@@ -3483,15 +3803,15 @@ assertWithinScope( sel, op, scopeLock );
                         return { clientId: id, live: !! blk, name: blk && blk.name };
                     } ),
                 } );
-                if ( applied.length > 0 ) {
-markNonPersistent( dis );
-} // undo coalescing → one ⌘Z
                 // SSOT streaming: snapshot operand text BEFORE the op, then stream
                 // whatever text CHANGED or APPEARED after — a pure diff, no check on
                 // op.function. Works for any operation, present or future.
                 const _before = {};
                 snapshotContent( sel, opOperandIds( op ), _before );
-                const res = runOp( sel, dis, op );
+                // Undo coalescing → one ⌘Z: arm it at the op's first dispatch, so
+                // an op that throws first never leaves it armed for the user's
+                // next edit.
+                const res = runOp( sel, applied.length > 0 ? coalescingDispatch( dis ) : dis, op );
                 streamChangedText(
                     dis, sel,
                     opOperandIds( op ).concat( ( res && res.new_client_ids ) || [] ),
@@ -3615,6 +3935,8 @@ entry.impact = res.impact;
             }
             setTimeout( function () {
               liveCssReady.then( function () {
+                return whenTypewriterIdle( 3000 );
+              } ).then( function () {
                 const classNames = [];
                 for ( let a = 0; a < applied.length; a++ ) {
                     const o = ops[ applied[ a ].index ];
@@ -3652,12 +3974,17 @@ entry.impact = res.impact;
         } );
     }
 
-    function handleApplyChange( args ) {
+    function handleApplyChange( args, signal ) {
         // Vibe Editing v2: every apply_change is a serialized execution plan
         // ({ post_id?, operations[] }). runPlan validates the live editor, enforces
         // the post_id two-tab guard, applies each operation in order, and returns
         // per-index applied[] / failed[] with computed-effect no-op detection. There
         // is no other shape — the brain zod emits operations[] only.
+        // The ops dispatch synchronously; what can still write after the
+        // bridge's budget reply is the type-in, so an abort lands it at once.
+        if ( signal && typeof signal.addEventListener === 'function' ) {
+            signal.addEventListener( 'abort', flushTypewriter, { once: true } );
+        }
         return runPlan( args );
     }
 
@@ -3666,8 +3993,8 @@ entry.impact = res.impact;
         if ( window.zipwpMcp && window.zipwpMcp.registerTool ) {
             window.zipwpMcp.registerTool(
                 'editor/apply-change',
-                async function ( args ) {
- return handleApplyChange( args );
+                async function ( args, context ) {
+ return handleApplyChange( args, context && context.signal );
 },
                 { previewMode: 'client' }
             );
@@ -3852,17 +4179,17 @@ return null;
     }
 
     // Decode HTML entities + strip tags + collapse whitespace — for the AUTHORED
-    // attr, which may carry entities/markup. A detached element (cached, plain
-    // `document` — decoding is document-agnostic) does the exact decode the browser
-    // does; under jest (no DOM) it degrades to a tag strip. Pairs with collapseWs
-    // so authored + rendered compare like-for-like — entity/markup/whitespace
+    // attr, which may carry entities/markup. An element of an inert document
+    // (cached; no browsing context, so nothing in the markup runs or loads) does
+    // the exact decode the browser does; under jest (no DOM) it degrades to a
+    // tag strip. Pairs with collapseWs so authored + rendered compare like-for-like — entity/markup/whitespace
     // differences never cause a false divergence.
     let _decodeEl = null;
     function normContent( s ) {
         let str = s === null || s === undefined ? '' : String( s );
         try {
             if ( _decodeEl === null ) {
-_decodeEl = document.createElement( 'div' );
+_decodeEl = document.implementation.createHTMLDocument( '' ).body;
 }
             _decodeEl.innerHTML = str;
             str = _decodeEl.textContent || '';
@@ -4526,6 +4853,12 @@ ids.push( idm[ 1 ] );
             return { success: false, error: String( e && e.message ? e.message : e ) };
         }
 
+        const u = sharedEditorUtils();
+        const refusal = u && u.postIdRefusal ? u.postIdRefusal( args ? args.post_id : undefined ) : null;
+        if ( refusal ) {
+            return { success: false, error: refusal.reason + ': ' + refusal.detail + ' (the open editor is not the post this edit was planned for)' };
+        }
+
         let clientId = resolveClientId( sel, args );
         if ( ! clientId ) {
             return { success: false, error: 'no_block: the page has no blocks to attach JS to' };
@@ -4574,7 +4907,8 @@ ids.push( idm[ 1 ] );
         // AFTER the js-capable redirect so it validates the block actually written to.
         // Degrades to ALLOW when the selector is absent (older Gutenberg), matching
         // assertMutable — never a false block.
-        if ( typeof sel.canEditBlock === 'function' && sel.canEditBlock( clientId ) === false ) {
+        const aiEditable = ! ( u && u.isAiEditable ) || u.isAiEditable( sel, clientId );
+        if ( ( typeof sel.canEditBlock === 'function' && sel.canEditBlock( clientId ) === false ) || ! aiEditable ) {
             return {
                 success: false,
                 error: 'locked_block: ' + clientId + ' is locked in the editor (template lock, content lock, or a synced-pattern instance), so its JavaScript cannot be changed here. Edit the pattern itself, or unlock the block.',
@@ -5194,7 +5528,8 @@ out.styleContext = ctx;
     // editor/apply-change utility classNames (editor state, committed on Save). This
     // handler still rejects scope:'page' defensively so a stale/forked brain bundle
     // can never resurrect the silent DB write.
-    async function handleSetStyles( args ) {
+    // `signal` aborts past the bridge's reply budget: no write starts after it.
+    async function handleSetStyles( args, signal ) {
         const scope = args && args.scope === 'global' ? 'global' : null;
         const incoming = args && args.payload;
         if ( args && args.scope === 'page' ) {
@@ -5211,6 +5546,9 @@ out.styleContext = ctx;
         }
 
         // scope === 'global' — read-modify-write the option (immediate, site-wide).
+        const cancelled = function () {
+            return !! ( signal && signal.aborted );
+        };
         let existingGlobal;
         try {
             // eslint-disable-next-line no-redeclare, no-var
@@ -5219,6 +5557,9 @@ out.styleContext = ctx;
         } catch ( e ) {
             return { success: false, error: 'global_read_failed: ' + String( e && e.message ? e.message : e ) };
         }
+        if ( cancelled() ) {
+            return { success: false, error: 'cancelled_over_budget: nothing was written' };
+        }
         const mergedGlobal = mergePayload( existingGlobal, incoming );
         try {
             // /sitewide replaces non-class buckets wholesale → send the FULL merged
@@ -5226,6 +5567,9 @@ out.styleContext = ctx;
             await apiFetch( { path: NS + '/sitewide', method: 'POST', data: { payload: mergedGlobal } } );
         } catch ( e ) {
             return { success: false, error: 'global_write_failed: ' + String( e && e.message ? e.message : e ) };
+        }
+        if ( cancelled() ) {
+            return { success: false, error: 'cancelled_over_budget: the site-wide styles were written, the live repaint was skipped' };
         }
         try {
             const rg = await apiFetch( { path: NS + '/render', method: 'POST', data: { payload: mergedGlobal, post_id: 0, scope: 'global' } } );
@@ -5250,8 +5594,8 @@ out.styleContext = ctx;
             window.zipwpMcp.registerTool( 'editor/get-styles', async function ( args ) {
  return handleGetStyles( args );
 }, { previewMode: 'client' } );
-            window.zipwpMcp.registerTool( 'editor/set-styles', async function ( args ) {
- return handleSetStyles( args );
+            window.zipwpMcp.registerTool( 'editor/set-styles', async function ( args, context ) {
+ return handleSetStyles( args, context && context.signal );
 }, { previewMode: 'client' } );
         } else {
             setTimeout( initHandler, 100 );
@@ -6307,9 +6651,9 @@ return;
     // reload happened between the apply and this replay → the edit is gone.
     function decideJsRpcDispatch( seenEntry, currentPageLoadId ) {
         if ( seenEntry ) {
+            // An untagged write cannot prove it ran on THIS load: reverify.
             if ( seenEntry.mutating === true &&
                 currentPageLoadId !== undefined && currentPageLoadId !== null &&
-                seenEntry.pageLoadId !== undefined &&
                 seenEntry.pageLoadId !== currentPageLoadId ) {
                 return { action: 'repost_cached', reply: RELOAD_REVERIFY_MARKER };
             }
@@ -6318,15 +6662,43 @@ return;
         return { action: 'run', inFlightMarker: IN_FLIGHT_MARKER };
     }
 
+    // Bound the seen-map by evicting OLDER turns first (insertion order). Entries
+    // of `keepTurnId` (the turn being executed) are never evicted, so a replay of
+    // its earliest calls stays a no-op however many calls the turn makes.
+    // ponytail: one turn is bounded by the brain's step cap, not by this map.
+    function evictRpcSeen( seen, max, keepTurnId ) {
+        for ( const [ id, entry ] of seen ) {
+            if ( seen.size <= max ) {
+                break;
+            }
+            if ( ! keepTurnId || ! entry || entry.turnId !== keepTurnId ) {
+                seen.delete( id );
+            }
+        }
+        return seen;
+    }
+
+    // The brain waits a fixed window from DISPATCH, so handler time spends the
+    // same budget as the reply POST. Returns the next attempt's timeout, or 0
+    // when the window is spent (a later POST could only be refused).
+    function replyAttemptTimeout( startedAt, now, budgetMs, perAttemptMs ) {
+        const left = budgetMs - ( now - startedAt );
+        return left > 0 ? Math.min( perAttemptMs, left ) : 0;
+    }
+
     if ( typeof window !== 'undefined' ) {
         window.zipwpRpcDedup = window.zipwpRpcDedup || {};
         window.zipwpRpcDedup.decideJsRpcDispatch = decideJsRpcDispatch;
+        window.zipwpRpcDedup.evictRpcSeen = evictRpcSeen;
+        window.zipwpRpcDedup.replyAttemptTimeout = replyAttemptTimeout;
         window.zipwpRpcDedup.IN_FLIGHT_MARKER = IN_FLIGHT_MARKER;
         window.zipwpRpcDedup.RELOAD_REVERIFY_MARKER = RELOAD_REVERIFY_MARKER;
     }
     if ( typeof module !== 'undefined' && module.exports ) {
         module.exports = {
             decideJsRpcDispatch,
+            evictRpcSeen,
+            replyAttemptTimeout,
             IN_FLIGHT_MARKER,
             RELOAD_REVERIFY_MARKER,
         };
@@ -6395,6 +6767,13 @@ return;
     // mutate block attributes in the open editor session; set_styles writes REST
     // (survives reload) so it is NOT here.
     const SESSION_SCOPED_TOOLS = { 'editor/apply-change': true, 'editor/set-scripts': true };
+    // A js_rpc handler gets this long from receipt; one reply POST must still
+    // fit in the brain's wait (see postRpcReply's budget).
+    const RPC_HANDLER_BUDGET_MS = 12000;
+    // A handler applies its edits before it replies, so one started with less than
+    // this left would land them and then lose the race to its reply.
+    const RPC_HANDLER_MIN_START_MS = 1000;
+    const RPC_HANDLER_TIMED_OUT = {};
     function loadRpcSeen() {
         try {
             const raw = window.sessionStorage && window.sessionStorage.getItem( RPC_DEDUP_STORAGE_KEY );
@@ -6429,6 +6808,9 @@ return;
 _rpcSeen.delete( callId );
 }
         const entry = { ok, data, error };
+        if ( meta && meta.turnId ) {
+            entry.turnId = meta.turnId;
+        }
         // Tag session-scoped completed writes with the page-load id so a later
         // replay after a reload reposts an uncertain reply instead of a vanished
         // success (F2). Reads / non-session writes stay untagged (repost cached).
@@ -6437,10 +6819,43 @@ _rpcSeen.delete( callId );
             entry.pageLoadId = meta.pageLoadId;
         }
         _rpcSeen.set( callId, entry );
-        while ( _rpcSeen.size > RPC_DEDUP_MAX ) {
-            _rpcSeen.delete( _rpcSeen.keys().next().value );
+        const dedupApi = window.zipwpRpcDedup;
+        if ( dedupApi && dedupApi.evictRpcSeen ) {
+            dedupApi.evictRpcSeen( _rpcSeen, RPC_DEDUP_MAX, entry.turnId );
+        } else {
+            while ( _rpcSeen.size > RPC_DEDUP_MAX ) {
+                _rpcSeen.delete( _rpcSeen.keys().next().value );
+            }
         }
         saveRpcSeen();
+    }
+
+    // A resumed turn can dispatch before the editor has set up its post.
+    // `__unstableIsEditorReady` is `!!state.postId` here: the post is set up,
+    // not that its blocks are parsed. No core/editor store = not an editor
+    // screen; the handler refuses on its own there. Once a full wait has run
+    // out, this screen is taken as not setting a post up: later calls wait only
+    // a short grace, until it is seen ready.
+    const EDITOR_READY_WAIT_MS = 5000;
+    const EDITOR_READY_GRACE_MS = 1000;
+    let editorWaitExpired = false;
+    function isEditorReady() {
+        const ed = window.wp && window.wp.data && window.wp.data.select ? window.wp.data.select( 'core/editor' ) : null;
+        return ! ed || typeof ed.__unstableIsEditorReady !== 'function' || ed.__unstableIsEditorReady() === true;
+    }
+    async function waitForEditorReady( maxMs ) {
+        const until = Date.now() + ( editorWaitExpired ? Math.min( maxMs, EDITOR_READY_GRACE_MS ) : maxMs );
+        while ( ! isEditorReady() ) {
+            if ( Date.now() >= until ) {
+                editorWaitExpired = editorWaitExpired || maxMs >= EDITOR_READY_WAIT_MS;
+                return false;
+            }
+            await new Promise( function ( r ) {
+                setTimeout( r, 100 );
+            } );
+        }
+        editorWaitExpired = false;
+        return true;
     }
 
     // Map WP editor getSettings() colors/fontSizes (`[{name, slug, color|size}]`)
@@ -6998,6 +7413,17 @@ return editorContext;
             // sections" phrase can't silently disable the selection scope lock.
             // Keep in lockstep with the iframe path (src/hooks/useMessageSubmit.js).
             editorContext.page_wide = ! hasLiveSelection;
+            // A multi-selection is a scope too (getSelectedBlock() is null for it):
+            // the edit is confined to exactly those blocks, never page-wide.
+            const multiIds = typeof blockEditorSelect.getMultiSelectedBlockClientIds === 'function'
+                ? blockEditorSelect.getMultiSelectedBlockClientIds()
+                : [];
+            // ponytail: above the brain's 64-id limit the field is sent as none and
+            // the edit stays page-wide (useMessageSubmit holds the same cap).
+            if ( Array.isArray( multiIds ) && multiIds.length > 1 && multiIds.length <= 64 ) {
+                editorContext.multi_selected_client_ids = multiIds.slice();
+                editorContext.page_wide = false;
+            }
             if ( hasLiveSelection ) {
                 // Build the brain's selected_block DTO DIRECTLY in snake_case — the
                 // exact shape the brain's zod reads ({ client_id, block_name }). NO
@@ -7334,7 +7760,11 @@ stack.push( b.innerBlocks[ i ] );
                 const stack = [ block ];
                 while ( stack.length > 0 ) {
                     const b = stack.pop();
-                    if ( b.name && ( b.name.indexOf( 'form' ) !== -1 || b.name.indexOf( 'input' ) !== -1 || b.name.indexOf( 'field' ) !== -1 ) ) {
+                    // Whole name segments only: `core/freeform` is not a form.
+                    const parts = b.name ? b.name.split( /[\/-]/ ) : [];
+                    if ( parts.some( function ( w ) {
+                        return w === 'srfm' || /^(forms?|inputs?|fields?)$/.test( w );
+                    } ) ) {
 return true;
 }
                     if ( b.innerBlocks ) {
@@ -7522,10 +7952,16 @@ return null;
             if ( ! html || typeof html !== 'string' ) {
 return html;
 }
+            // Gutenberg escapes only `--` (as `\u002d\u002d`), so a delimiter whose
+            // slashes were stripped carries the pair, as does any attribute rendered
+            // from it (a class, a `var(--…)` in a style, an href). Repaired in the
+            // delimiters and the tags only: the page's own text is left as written.
             return html
                 .replace( /\\\\u002d/gi, '-' )
                 .replace( /\\u002d/gi, '-' )
-                .replace( /u002d/gi, '-' );
+                .replace( /<!-- \/?wp:[\s\S]*?-->|<[a-zA-Z][^>]*>/g, function ( m ) {
+                    return m.replace( /u002du002d/gi, '--' );
+                } );
         }
 
         // ── Block Editor Operations ───────────────────────────────────
@@ -7623,6 +8059,15 @@ throw new Error( 'Failed to capture screenshot' );
         // React SSE layer passes it so js_rpc replies can carry it to Laravel,
         // which verifies it against the brain's owner key for the call_id.
         async executeTools( executionResults, sessionId ) {
+            // Every envelope in this batch was dispatched together; the brain's
+            // reply window started then, not when its turn in this loop comes up.
+            const receivedAt = Date.now();
+            // Replies for calls this batch never ran (a re-sent answer, a call it left no
+            // time for, one that threw), sent together: awaited one by one, the later
+            // ones could reach the brain after it stopped waiting.
+            const replies = [];
+            // The editor is waited for once per batch: a later call in it does not wait again.
+            let editorWaitedOut = false;
             if ( window.ZIPAI_CONFIG && window.ZIPAI_CONFIG.debug ) {
                 console.log( '[ZIP AI:wp-bridge-host] executeTools called count=%d tools=%s',
                     executionResults.length,
@@ -7664,12 +8109,12 @@ throw new Error( 'Failed to capture screenshot' );
                                     : { action: seenReply ? 'repost_cached' : 'run', reply: seenReply, inFlightMarker: null };
                                 if ( dedup.action === 'repost_cached' ) {
                                     console.warn( '[ZIP AI:wp-bridge-host] js_rpc duplicate/in-flight call_id=%s — skipping re-dispatch, re-POSTing reply', toolCallId );
-                                    await this.postRpcReply( toolCallId, dedup.reply.ok, dedup.reply.data, dedup.reply.error, sessionId );
+                                    replies.push( this.postRpcReply( toolCallId, dedup.reply.ok, dedup.reply.data, dedup.reply.error, sessionId, receivedAt ) );
                                     continue;
                                 }
                                 if ( dedup.inFlightMarker ) {
                                     const inflight = dedup.inFlightMarker;
-                                    rpcSeenRemember( toolCallId, inflight.ok, inflight.data, inflight.error );
+                                    rpcSeenRemember( toolCallId, inflight.ok, inflight.data, inflight.error, { turnId: result.turn_id } );
                                 }
                             }
 
@@ -7721,6 +8166,26 @@ throw new Error( 'Failed to capture screenshot' );
                                 throw new Error( 'No handler available for tool: ' + toolName );
                             }
 
+                            // A call an earlier call in this batch left too little budget for
+                            // is never started: it is replied as not run, so the brain can
+                            // send it again without an edit having landed.
+                            if ( result.execution_mode === 'js_rpc' &&
+                                receivedAt + RPC_HANDLER_BUDGET_MS - Date.now() < RPC_HANDLER_MIN_START_MS ) {
+                                rpcSeenRemember( toolCallId, false, undefined, 'rpc_budget_exhausted', { turnId: result.turn_id } );
+                                replies.push( this.postRpcReply( toolCallId, false, undefined, 'rpc_budget_exhausted', sessionId, receivedAt ) );
+                                continue;
+                            }
+
+                            // Never waited into the budget a handler needs to start.
+                            if ( result.execution_mode === 'js_rpc' && String( toolName ).indexOf( 'editor/' ) === 0 ) {
+                                const waitMs = editorWaitedOut ? 0 : Math.min( EDITOR_READY_WAIT_MS,
+                                    receivedAt + RPC_HANDLER_BUDGET_MS - RPC_HANDLER_MIN_START_MS - Date.now() );
+                                if ( ! ( await waitForEditorReady( waitMs ) ) ) {
+                                    editorWaitedOut = true;
+                                    throw new Error( 'editor_not_ready' );
+                                }
+                            }
+
                             // L-16: the full-page getContext() re-walk was merged
                             // into every envelope as `_wordpress_context` — but NO
                             // editor handler reads it (the brain strips it at the
@@ -7729,11 +8194,41 @@ throw new Error( 'Failed to capture screenshot' );
                             // eslint-disable-next-line no-var
                             var toolArgs = Object.assign( {}, toolArguments );
 
-                            const hookResult = await window.zipwpMcp.toolHooks.executeToolHook(
+                            // Aborted once the budget reply goes out: the handler then
+                            // issues no further writes (ones already made stay).
+                            const handlerAbort = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+                            const hookRun = window.zipwpMcp.toolHooks.executeToolHook(
                                 toolName,
                                 toolArgs,
-                                { jsExecutionResult: executionResults }
+                                { jsExecutionResult: executionResults, signal: handlerAbort ? handlerAbort.signal : undefined }
                             );
+                            // A js_rpc handler that outlives the brain's wait would reply
+                            // into a closed window. Past the handler budget, reply the
+                            // uncertain in-flight marker (the brain verifies before any
+                            // retry); the late finish is not re-posted.
+                            let handlerTimer = null;
+                            const hookResult = result.execution_mode === 'js_rpc'
+                                ? await Promise.race( [
+                                    hookRun,
+                                    new Promise( function ( r ) {
+                                        handlerTimer = setTimeout( function () {
+                                            r( RPC_HANDLER_TIMED_OUT );
+                                        }, Math.max( 0, receivedAt + RPC_HANDLER_BUDGET_MS - Date.now() ) );
+                                    } ),
+                                ] ).finally( function () {
+                                    clearTimeout( handlerTimer );
+                                } )
+                                : await hookRun;
+                            if ( hookResult === RPC_HANDLER_TIMED_OUT ) {
+                                const pending = ( window.zipwpRpcDedup && window.zipwpRpcDedup.IN_FLIGHT_MARKER ) ||
+                                    { ok: false, error: 'apply_pending_no_confirmation' };
+                                console.error( '[ZIP AI:wp-bridge-host] js_rpc handler over budget tool=%s call_id=%s', toolName, toolCallId );
+                                if ( handlerAbort ) {
+                                    handlerAbort.abort();
+                                }
+                                await this.postRpcReply( toolCallId, false, undefined, pending.error, sessionId, receivedAt );
+                                continue;
+                            }
 
                             // Capture result for next-turn context injection
                             if ( window.ZIPAI_CONFIG && window.ZIPAI_CONFIG.debug ) {
@@ -7779,8 +8274,9 @@ acc.push.apply( acc, a.unknown_attrs );
                                 rpcSeenRemember( toolCallId, rpcOk, rpcData, rpcErr, {
                                     mutating: rpcOk === true && SESSION_SCOPED_TOOLS[ toolName ] === true,
                                     pageLoadId: PAGE_LOAD_ID,
+                                    turnId: result.turn_id,
                                 } );
-                                await this.postRpcReply( toolCallId, rpcOk, rpcData, rpcErr, sessionId );
+                                await this.postRpcReply( toolCallId, rpcOk, rpcData, rpcErr, sessionId, receivedAt );
                                 continue;
                             }
 
@@ -7825,8 +8321,10 @@ acc.push.apply( acc, a.unknown_attrs );
                                 // discarded state), not the stale thrown error verbatim.
                                 rpcSeenRemember( toolCallId, false, undefined, thrownErr, {
                                     mutating: SESSION_SCOPED_TOOLS[ toolName ] === true,
+                                    pageLoadId: PAGE_LOAD_ID,
+                                    turnId: result.turn_id,
                                 } );
-                                await this.postRpcReply( toolCallId, false, undefined, thrownErr, sessionId );
+                                replies.push( this.postRpcReply( toolCallId, false, undefined, thrownErr, sessionId, receivedAt ) );
                                 continue;
                             }
                             if ( ! window.__zipwpLastToolResults ) {
@@ -7842,6 +8340,7 @@ window.__zipwpLastToolResults = [];
                         }
                     }
                 }
+            await Promise.all( replies );
         }
 
         // Vibe Editing v2 — POST a synchronous editor-RPC reply to the SaaS so
@@ -7863,7 +8362,7 @@ window.__zipwpLastToolResults = [];
         // the owner key after consuming, so a duplicate late POST is 409-rejected,
         // never double-folded; re-execution is impossible (the handler already
         // ran; _rpcSeen replays the cached reply).
-        async postRpcReply( callId, ok, data, error, sessionId ) {
+        async postRpcReply( callId, ok, data, error, sessionId, startedAt ) {
             // The editor turn's executeTools loop AWAITS this POST before moving
             // to the next call, so a hung request would stall the whole turn.
             // Bound it with an AbortController timeout — the brain's BRPOP times
@@ -7882,6 +8381,11 @@ window.__zipwpLastToolResults = [];
             // budget ~4s inside the brain's BRPOP window (handler-exec + SSE + the
             // reply route's ownership check eat the rest).
             const timeoutMs = 5000;
+            // Handler time spends the same window: the whole dispatch-to-reply
+            // span stays inside the brain's minimum safe wait (18s) less SSE lag.
+            const budgetMs = 16000;
+            const t0 = typeof startedAt === 'number' ? startedAt : Date.now();
+            const dedupApi = window.zipwpRpcDedup;
             const rpcReplyUrl = String( cfg.brainUrl || '' ).replace( /\/+$/, '' ) + '/agent/rpc-reply';
             const body = { call_id: callId, ok: !! ok };
             if ( sessionId ) {
@@ -7919,11 +8423,21 @@ window.__zipwpLastToolResults = [];
 
             // eslint-disable-next-line no-var
             for ( var attempt = 1; attempt <= attempts; attempt++ ) {
+                const left = ( dedupApi && dedupApi.replyAttemptTimeout )
+                    ? dedupApi.replyAttemptTimeout( t0, Date.now(), budgetMs, timeoutMs )
+                    : timeoutMs;
+                // The first POST always goes (a longer brain window may still be
+                // open); retries stop once the window is spent.
+                const attemptTimeoutMs = left || ( attempt === 1 ? timeoutMs : 0 );
+                if ( ! attemptTimeoutMs ) {
+                    console.error( '[ZIP AI:wp-bridge-host] rpc-reply budget spent call_id=%s after attempt %d', callId, attempt - 1 );
+                    break;
+                }
                 // eslint-disable-next-line no-var
                 var controller = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
                 const timer = controller ? setTimeout( function () {
  controller.abort();
-}, timeoutMs ) : null;
+}, attemptTimeoutMs ) : null;
                 try {
                     const opts = { method: 'POST', headers, body: payload };
                     if ( controller ) {
@@ -7944,7 +8458,7 @@ return;
 return;
 }
                 } catch ( e ) {
-                    const reason = ( e && e.name === 'AbortError' ) ? ( 'timeout after ' + timeoutMs + 'ms' ) : ( e && e.message );
+                    const reason = ( e && e.name === 'AbortError' ) ? ( 'timeout after ' + attemptTimeoutMs + 'ms' ) : ( e && e.message );
                     console.error( '[ZIP AI:wp-bridge-host] rpc-reply POST threw call_id=%s attempt=%d/%d err=%s',
                         callId, attempt, attempts, reason );
                 } finally {

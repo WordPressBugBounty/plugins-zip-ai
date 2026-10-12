@@ -193,6 +193,12 @@ ids.push( idm[ 1 ] );
             return { success: false, error: String( e && e.message ? e.message : e ) };
         }
 
+        const u = sharedEditorUtils();
+        const refusal = u && u.postIdRefusal ? u.postIdRefusal( args ? args.post_id : undefined ) : null;
+        if ( refusal ) {
+            return { success: false, error: refusal.reason + ': ' + refusal.detail + ' (the open editor is not the post this edit was planned for)' };
+        }
+
         let clientId = resolveClientId( sel, args );
         if ( ! clientId ) {
             return { success: false, error: 'no_block: the page has no blocks to attach JS to' };
@@ -241,7 +247,8 @@ ids.push( idm[ 1 ] );
         // AFTER the js-capable redirect so it validates the block actually written to.
         // Degrades to ALLOW when the selector is absent (older Gutenberg), matching
         // assertMutable — never a false block.
-        if ( typeof sel.canEditBlock === 'function' && sel.canEditBlock( clientId ) === false ) {
+        const aiEditable = ! ( u && u.isAiEditable ) || u.isAiEditable( sel, clientId );
+        if ( ( typeof sel.canEditBlock === 'function' && sel.canEditBlock( clientId ) === false ) || ! aiEditable ) {
             return {
                 success: false,
                 error: 'locked_block: ' + clientId + ' is locked in the editor (template lock, content lock, or a synced-pattern instance), so its JavaScript cannot be changed here. Edit the pattern itself, or unlock the block.',

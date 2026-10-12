@@ -59,6 +59,13 @@
     // mutate block attributes in the open editor session; set_styles writes REST
     // (survives reload) so it is NOT here.
     const SESSION_SCOPED_TOOLS = { 'editor/apply-change': true, 'editor/set-scripts': true };
+    // A js_rpc handler gets this long from receipt; one reply POST must still
+    // fit in the brain's wait (see postRpcReply's budget).
+    const RPC_HANDLER_BUDGET_MS = 12000;
+    // A handler applies its edits before it replies, so one started with less than
+    // this left would land them and then lose the race to its reply.
+    const RPC_HANDLER_MIN_START_MS = 1000;
+    const RPC_HANDLER_TIMED_OUT = {};
     function loadRpcSeen() {
         try {
             const raw = window.sessionStorage && window.sessionStorage.getItem( RPC_DEDUP_STORAGE_KEY );
@@ -93,6 +100,9 @@ return;
 _rpcSeen.delete( callId );
 }
         const entry = { ok, data, error };
+        if ( meta && meta.turnId ) {
+            entry.turnId = meta.turnId;
+        }
         // Tag session-scoped completed writes with the page-load id so a later
         // replay after a reload reposts an uncertain reply instead of a vanished
         // success (F2). Reads / non-session writes stay untagged (repost cached).
@@ -101,10 +111,43 @@ _rpcSeen.delete( callId );
             entry.pageLoadId = meta.pageLoadId;
         }
         _rpcSeen.set( callId, entry );
-        while ( _rpcSeen.size > RPC_DEDUP_MAX ) {
-            _rpcSeen.delete( _rpcSeen.keys().next().value );
+        const dedupApi = window.zipwpRpcDedup;
+        if ( dedupApi && dedupApi.evictRpcSeen ) {
+            dedupApi.evictRpcSeen( _rpcSeen, RPC_DEDUP_MAX, entry.turnId );
+        } else {
+            while ( _rpcSeen.size > RPC_DEDUP_MAX ) {
+                _rpcSeen.delete( _rpcSeen.keys().next().value );
+            }
         }
         saveRpcSeen();
+    }
+
+    // A resumed turn can dispatch before the editor has set up its post.
+    // `__unstableIsEditorReady` is `!!state.postId` here: the post is set up,
+    // not that its blocks are parsed. No core/editor store = not an editor
+    // screen; the handler refuses on its own there. Once a full wait has run
+    // out, this screen is taken as not setting a post up: later calls wait only
+    // a short grace, until it is seen ready.
+    const EDITOR_READY_WAIT_MS = 5000;
+    const EDITOR_READY_GRACE_MS = 1000;
+    let editorWaitExpired = false;
+    function isEditorReady() {
+        const ed = window.wp && window.wp.data && window.wp.data.select ? window.wp.data.select( 'core/editor' ) : null;
+        return ! ed || typeof ed.__unstableIsEditorReady !== 'function' || ed.__unstableIsEditorReady() === true;
+    }
+    async function waitForEditorReady( maxMs ) {
+        const until = Date.now() + ( editorWaitExpired ? Math.min( maxMs, EDITOR_READY_GRACE_MS ) : maxMs );
+        while ( ! isEditorReady() ) {
+            if ( Date.now() >= until ) {
+                editorWaitExpired = editorWaitExpired || maxMs >= EDITOR_READY_WAIT_MS;
+                return false;
+            }
+            await new Promise( function ( r ) {
+                setTimeout( r, 100 );
+            } );
+        }
+        editorWaitExpired = false;
+        return true;
     }
 
     // Map WP editor getSettings() colors/fontSizes (`[{name, slug, color|size}]`)
@@ -662,6 +705,17 @@ return editorContext;
             // sections" phrase can't silently disable the selection scope lock.
             // Keep in lockstep with the iframe path (src/hooks/useMessageSubmit.js).
             editorContext.page_wide = ! hasLiveSelection;
+            // A multi-selection is a scope too (getSelectedBlock() is null for it):
+            // the edit is confined to exactly those blocks, never page-wide.
+            const multiIds = typeof blockEditorSelect.getMultiSelectedBlockClientIds === 'function'
+                ? blockEditorSelect.getMultiSelectedBlockClientIds()
+                : [];
+            // ponytail: above the brain's 64-id limit the field is sent as none and
+            // the edit stays page-wide (useMessageSubmit holds the same cap).
+            if ( Array.isArray( multiIds ) && multiIds.length > 1 && multiIds.length <= 64 ) {
+                editorContext.multi_selected_client_ids = multiIds.slice();
+                editorContext.page_wide = false;
+            }
             if ( hasLiveSelection ) {
                 // Build the brain's selected_block DTO DIRECTLY in snake_case — the
                 // exact shape the brain's zod reads ({ client_id, block_name }). NO
@@ -998,7 +1052,11 @@ stack.push( b.innerBlocks[ i ] );
                 const stack = [ block ];
                 while ( stack.length > 0 ) {
                     const b = stack.pop();
-                    if ( b.name && ( b.name.indexOf( 'form' ) !== -1 || b.name.indexOf( 'input' ) !== -1 || b.name.indexOf( 'field' ) !== -1 ) ) {
+                    // Whole name segments only: `core/freeform` is not a form.
+                    const parts = b.name ? b.name.split( /[\/-]/ ) : [];
+                    if ( parts.some( function ( w ) {
+                        return w === 'srfm' || /^(forms?|inputs?|fields?)$/.test( w );
+                    } ) ) {
 return true;
 }
                     if ( b.innerBlocks ) {
@@ -1186,10 +1244,16 @@ return null;
             if ( ! html || typeof html !== 'string' ) {
 return html;
 }
+            // Gutenberg escapes only `--` (as `\u002d\u002d`), so a delimiter whose
+            // slashes were stripped carries the pair, as does any attribute rendered
+            // from it (a class, a `var(--…)` in a style, an href). Repaired in the
+            // delimiters and the tags only: the page's own text is left as written.
             return html
                 .replace( /\\\\u002d/gi, '-' )
                 .replace( /\\u002d/gi, '-' )
-                .replace( /u002d/gi, '-' );
+                .replace( /<!-- \/?wp:[\s\S]*?-->|<[a-zA-Z][^>]*>/g, function ( m ) {
+                    return m.replace( /u002du002d/gi, '--' );
+                } );
         }
 
         // ── Block Editor Operations ───────────────────────────────────
@@ -1287,6 +1351,15 @@ throw new Error( 'Failed to capture screenshot' );
         // React SSE layer passes it so js_rpc replies can carry it to Laravel,
         // which verifies it against the brain's owner key for the call_id.
         async executeTools( executionResults, sessionId ) {
+            // Every envelope in this batch was dispatched together; the brain's
+            // reply window started then, not when its turn in this loop comes up.
+            const receivedAt = Date.now();
+            // Replies for calls this batch never ran (a re-sent answer, a call it left no
+            // time for, one that threw), sent together: awaited one by one, the later
+            // ones could reach the brain after it stopped waiting.
+            const replies = [];
+            // The editor is waited for once per batch: a later call in it does not wait again.
+            let editorWaitedOut = false;
             if ( window.ZIPAI_CONFIG && window.ZIPAI_CONFIG.debug ) {
                 console.log( '[ZIP AI:wp-bridge-host] executeTools called count=%d tools=%s',
                     executionResults.length,
@@ -1328,12 +1401,12 @@ throw new Error( 'Failed to capture screenshot' );
                                     : { action: seenReply ? 'repost_cached' : 'run', reply: seenReply, inFlightMarker: null };
                                 if ( dedup.action === 'repost_cached' ) {
                                     console.warn( '[ZIP AI:wp-bridge-host] js_rpc duplicate/in-flight call_id=%s — skipping re-dispatch, re-POSTing reply', toolCallId );
-                                    await this.postRpcReply( toolCallId, dedup.reply.ok, dedup.reply.data, dedup.reply.error, sessionId );
+                                    replies.push( this.postRpcReply( toolCallId, dedup.reply.ok, dedup.reply.data, dedup.reply.error, sessionId, receivedAt ) );
                                     continue;
                                 }
                                 if ( dedup.inFlightMarker ) {
                                     const inflight = dedup.inFlightMarker;
-                                    rpcSeenRemember( toolCallId, inflight.ok, inflight.data, inflight.error );
+                                    rpcSeenRemember( toolCallId, inflight.ok, inflight.data, inflight.error, { turnId: result.turn_id } );
                                 }
                             }
 
@@ -1385,6 +1458,26 @@ throw new Error( 'Failed to capture screenshot' );
                                 throw new Error( 'No handler available for tool: ' + toolName );
                             }
 
+                            // A call an earlier call in this batch left too little budget for
+                            // is never started: it is replied as not run, so the brain can
+                            // send it again without an edit having landed.
+                            if ( result.execution_mode === 'js_rpc' &&
+                                receivedAt + RPC_HANDLER_BUDGET_MS - Date.now() < RPC_HANDLER_MIN_START_MS ) {
+                                rpcSeenRemember( toolCallId, false, undefined, 'rpc_budget_exhausted', { turnId: result.turn_id } );
+                                replies.push( this.postRpcReply( toolCallId, false, undefined, 'rpc_budget_exhausted', sessionId, receivedAt ) );
+                                continue;
+                            }
+
+                            // Never waited into the budget a handler needs to start.
+                            if ( result.execution_mode === 'js_rpc' && String( toolName ).indexOf( 'editor/' ) === 0 ) {
+                                const waitMs = editorWaitedOut ? 0 : Math.min( EDITOR_READY_WAIT_MS,
+                                    receivedAt + RPC_HANDLER_BUDGET_MS - RPC_HANDLER_MIN_START_MS - Date.now() );
+                                if ( ! ( await waitForEditorReady( waitMs ) ) ) {
+                                    editorWaitedOut = true;
+                                    throw new Error( 'editor_not_ready' );
+                                }
+                            }
+
                             // L-16: the full-page getContext() re-walk was merged
                             // into every envelope as `_wordpress_context` — but NO
                             // editor handler reads it (the brain strips it at the
@@ -1393,11 +1486,41 @@ throw new Error( 'Failed to capture screenshot' );
                             // eslint-disable-next-line no-var
                             var toolArgs = Object.assign( {}, toolArguments );
 
-                            const hookResult = await window.zipwpMcp.toolHooks.executeToolHook(
+                            // Aborted once the budget reply goes out: the handler then
+                            // issues no further writes (ones already made stay).
+                            const handlerAbort = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+                            const hookRun = window.zipwpMcp.toolHooks.executeToolHook(
                                 toolName,
                                 toolArgs,
-                                { jsExecutionResult: executionResults }
+                                { jsExecutionResult: executionResults, signal: handlerAbort ? handlerAbort.signal : undefined }
                             );
+                            // A js_rpc handler that outlives the brain's wait would reply
+                            // into a closed window. Past the handler budget, reply the
+                            // uncertain in-flight marker (the brain verifies before any
+                            // retry); the late finish is not re-posted.
+                            let handlerTimer = null;
+                            const hookResult = result.execution_mode === 'js_rpc'
+                                ? await Promise.race( [
+                                    hookRun,
+                                    new Promise( function ( r ) {
+                                        handlerTimer = setTimeout( function () {
+                                            r( RPC_HANDLER_TIMED_OUT );
+                                        }, Math.max( 0, receivedAt + RPC_HANDLER_BUDGET_MS - Date.now() ) );
+                                    } ),
+                                ] ).finally( function () {
+                                    clearTimeout( handlerTimer );
+                                } )
+                                : await hookRun;
+                            if ( hookResult === RPC_HANDLER_TIMED_OUT ) {
+                                const pending = ( window.zipwpRpcDedup && window.zipwpRpcDedup.IN_FLIGHT_MARKER ) ||
+                                    { ok: false, error: 'apply_pending_no_confirmation' };
+                                console.error( '[ZIP AI:wp-bridge-host] js_rpc handler over budget tool=%s call_id=%s', toolName, toolCallId );
+                                if ( handlerAbort ) {
+                                    handlerAbort.abort();
+                                }
+                                await this.postRpcReply( toolCallId, false, undefined, pending.error, sessionId, receivedAt );
+                                continue;
+                            }
 
                             // Capture result for next-turn context injection
                             if ( window.ZIPAI_CONFIG && window.ZIPAI_CONFIG.debug ) {
@@ -1443,8 +1566,9 @@ acc.push.apply( acc, a.unknown_attrs );
                                 rpcSeenRemember( toolCallId, rpcOk, rpcData, rpcErr, {
                                     mutating: rpcOk === true && SESSION_SCOPED_TOOLS[ toolName ] === true,
                                     pageLoadId: PAGE_LOAD_ID,
+                                    turnId: result.turn_id,
                                 } );
-                                await this.postRpcReply( toolCallId, rpcOk, rpcData, rpcErr, sessionId );
+                                await this.postRpcReply( toolCallId, rpcOk, rpcData, rpcErr, sessionId, receivedAt );
                                 continue;
                             }
 
@@ -1489,8 +1613,10 @@ acc.push.apply( acc, a.unknown_attrs );
                                 // discarded state), not the stale thrown error verbatim.
                                 rpcSeenRemember( toolCallId, false, undefined, thrownErr, {
                                     mutating: SESSION_SCOPED_TOOLS[ toolName ] === true,
+                                    pageLoadId: PAGE_LOAD_ID,
+                                    turnId: result.turn_id,
                                 } );
-                                await this.postRpcReply( toolCallId, false, undefined, thrownErr, sessionId );
+                                replies.push( this.postRpcReply( toolCallId, false, undefined, thrownErr, sessionId, receivedAt ) );
                                 continue;
                             }
                             if ( ! window.__zipwpLastToolResults ) {
@@ -1506,6 +1632,7 @@ window.__zipwpLastToolResults = [];
                         }
                     }
                 }
+            await Promise.all( replies );
         }
 
         // Vibe Editing v2 — POST a synchronous editor-RPC reply to the SaaS so
@@ -1527,7 +1654,7 @@ window.__zipwpLastToolResults = [];
         // the owner key after consuming, so a duplicate late POST is 409-rejected,
         // never double-folded; re-execution is impossible (the handler already
         // ran; _rpcSeen replays the cached reply).
-        async postRpcReply( callId, ok, data, error, sessionId ) {
+        async postRpcReply( callId, ok, data, error, sessionId, startedAt ) {
             // The editor turn's executeTools loop AWAITS this POST before moving
             // to the next call, so a hung request would stall the whole turn.
             // Bound it with an AbortController timeout — the brain's BRPOP times
@@ -1546,6 +1673,11 @@ window.__zipwpLastToolResults = [];
             // budget ~4s inside the brain's BRPOP window (handler-exec + SSE + the
             // reply route's ownership check eat the rest).
             const timeoutMs = 5000;
+            // Handler time spends the same window: the whole dispatch-to-reply
+            // span stays inside the brain's minimum safe wait (18s) less SSE lag.
+            const budgetMs = 16000;
+            const t0 = typeof startedAt === 'number' ? startedAt : Date.now();
+            const dedupApi = window.zipwpRpcDedup;
             const rpcReplyUrl = String( cfg.brainUrl || '' ).replace( /\/+$/, '' ) + '/agent/rpc-reply';
             const body = { call_id: callId, ok: !! ok };
             if ( sessionId ) {
@@ -1583,11 +1715,21 @@ window.__zipwpLastToolResults = [];
 
             // eslint-disable-next-line no-var
             for ( var attempt = 1; attempt <= attempts; attempt++ ) {
+                const left = ( dedupApi && dedupApi.replyAttemptTimeout )
+                    ? dedupApi.replyAttemptTimeout( t0, Date.now(), budgetMs, timeoutMs )
+                    : timeoutMs;
+                // The first POST always goes (a longer brain window may still be
+                // open); retries stop once the window is spent.
+                const attemptTimeoutMs = left || ( attempt === 1 ? timeoutMs : 0 );
+                if ( ! attemptTimeoutMs ) {
+                    console.error( '[ZIP AI:wp-bridge-host] rpc-reply budget spent call_id=%s after attempt %d', callId, attempt - 1 );
+                    break;
+                }
                 // eslint-disable-next-line no-var
                 var controller = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
                 const timer = controller ? setTimeout( function () {
  controller.abort();
-}, timeoutMs ) : null;
+}, attemptTimeoutMs ) : null;
                 try {
                     const opts = { method: 'POST', headers, body: payload };
                     if ( controller ) {
@@ -1608,7 +1750,7 @@ return;
 return;
 }
                 } catch ( e ) {
-                    const reason = ( e && e.name === 'AbortError' ) ? ( 'timeout after ' + timeoutMs + 'ms' ) : ( e && e.message );
+                    const reason = ( e && e.name === 'AbortError' ) ? ( 'timeout after ' + attemptTimeoutMs + 'ms' ) : ( e && e.message );
                     console.error( '[ZIP AI:wp-bridge-host] rpc-reply POST threw call_id=%s attempt=%d/%d err=%s',
                         callId, attempt, attempts, reason );
                 } finally {

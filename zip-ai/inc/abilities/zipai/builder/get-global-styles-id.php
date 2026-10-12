@@ -49,7 +49,7 @@ class GetGlobalStylesId extends Abstract_Ability {
 	public function configure() {
 		$this->id          = 'zipai/get-global-styles-id';
 		$this->label       = 'Get Global-Styles Post ID';
-		$this->description = 'Read-only: the post id of the active theme\'s editable user global-styles (wp_global_styles) record — the target for writing the theme\'s global typography. Use before a read-merge-write of /wp/v2/global-styles/{id}; the id is not exposed by the REST theme endpoint over MCP.';
+		$this->description = 'The post id of the active theme\'s editable user global-styles (wp_global_styles) record, created empty when none exists. It is the target for writing the theme\'s global typography. Use before a read-merge-write of /wp/v2/global-styles/{id}; the id is not exposed by the REST theme endpoint over MCP.';
 		$this->capability  = 'edit_theme_options';
 		// Hidden from the AI chat catalog — the server calls it itself over MCP.
 		$this->meta['visibility'] = 'internal';
@@ -58,15 +58,24 @@ class GetGlobalStylesId extends Abstract_Ability {
 	/**
 	 * Returns the tool-type classification for this ability.
 	 *
-	 * READ even though resolving the id lazily CREATES the (empty) user
-	 * `wp_global_styles` post on first call — an idempotent WP-core init the Site
-	 * Editor performs itself, not a user-facing write (see `$is_destructive`). Anything
-	 * that gates real writes on `Tool_Types::READ` should be aware of that one caveat.
+	 * WRITE: resolving the id CREATES the (empty) user `wp_global_styles` post
+	 * on first call — the same init the Site Editor performs, idempotent and not
+	 * destructive (see `get_annotations()`).
 	 *
 	 * @return string One of the Tool_Types constants.
 	 */
 	public function get_tool_type() {
-		return Tool_Types::READ;
+		return Tool_Types::WRITE;
+	}
+
+	/**
+	 * A WRITE's annotations, but idempotent: the first call creates the empty
+	 * user post, and repeat calls return the same id.
+	 *
+	 * @return array{readonly: bool, destructive: bool, idempotent: bool}
+	 */
+	public function get_annotations() {
+		return array( 'idempotent' => true ) + parent::get_annotations();
 	}
 
 	/**
