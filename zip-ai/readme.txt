@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.14
+Stable tag: 0.0.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -185,11 +185,27 @@ ZIP AI supports Bring Your Own Key (BYOK) as well as plan-based usage where avai
 
 Yes. You can clear stored site memory from the plugin. Deleting the plugin also removes locally stored plugin data handled by its uninstall process.
 
+= Where do I report security bugs found in this plugin? =
+
+Please report security bugs found in the source code of the ZIP AI plugin through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/061cc4b0-f0cf-4088-8556-e84ba3872c4e). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+
 == Screenshots ==
 
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.15 - October 29, 2026 =
+- New: ZIP AI has its own admin menu, with Code Snippets inside and starter ideas to ask for one.
+- New: Edit any live page with ZIP AI, with short guided tours through the preview, editor and chat.
+- Improvement: The brief sheet is grouped into sections, with Redo, and Continue waits for every [bracket].
+- Improvement: Skip a single brief question, and a guess you keep counts as your answer.
+- Improvement: Photos match the design you pick, and Close editor returns to that design's preview.
+- Improvement: The build card shows each stage with a step-by-step percentage.
+- Fix: The out-of-credits notice shows up reliably and stays closed once you dismiss it.
+- Fix: Snippets made in chat report exactly what was created or updated.
+- Fix: A design grid keeps building after a dropped connection or a sleeping tab.
+- Fix: Smaller fixes to tooltips, the image popup, ZipWP prompts and loading the ZIP AI screen.
 
 = 0.0.14 - October 12, 2026 =
 - New: One clear out-of-credits notice, with an Upgrade plan button, wherever a request is refused.

@@ -48,7 +48,7 @@ class ListCodeSnippets extends Abstract_Ability {
 		// belongs in the server prompts, not the schema description.
 		$this->description = 'Read-only enumeration of every snippet registered in ZIP AI\'s native registry (wp-content/zip-ai-snippets/manifest.php). '
 			. 'ZIP AI snippets are stored on the filesystem, NOT in any database table — DB queries (wp_snippets, wpcode posts, post_type=snippet, etc.) return zero. '
-			. 'Returns: { count, snippets: [{ slug, title, files, enabled, description, execution, conditions }] }. '
+			. 'Returns: { count, snippets: [{ slug, title, files, enabled, description, execution, conditions, evaluated_targeting }] }. '
 			. 'To modify (create/update/enable/delete), use zipai/run-snippet.';
 		// Read surface, so it tracks the REST list route's capability rather
 		// than the write cap — an admin who cannot author snippets still needs
@@ -98,14 +98,20 @@ class ListCodeSnippets extends Abstract_Ability {
 							'items' => array(
 								'type'       => 'object',
 								'properties' => array(
-									'slug'        => array( 'type' => 'string' ),
-									'title'       => array( 'type' => 'string' ),
-									'enabled'     => array( 'type' => 'boolean' ),
-									'description' => array( 'type' => 'string' ),
-									'files'       => array(
+									'slug'                => array( 'type' => 'string' ),
+									'title'               => array( 'type' => 'string' ),
+									'enabled'             => array( 'type' => 'boolean' ),
+									'description'         => array( 'type' => 'string' ),
+									'files'               => array(
 										'type'  => 'array',
 										'items' => array( 'type' => 'string' ),
 									),
+									'execution'           => array( 'type' => 'object' ),
+									'conditions'          => array(
+										'type'  => 'array',
+										'items' => array( 'type' => 'object' ),
+									),
+									'evaluated_targeting' => array( 'type' => 'string' ),
 								),
 							),
 						),
@@ -122,33 +128,9 @@ class ListCodeSnippets extends Abstract_Ability {
 	 * @return array<string,mixed> Standardized success response with the snippet list.
 	 */
 	public function execute( $input = array() ) {
-		$manifest = Snippet_Store::load();
-		$snippets = array();
-
-		foreach ( $manifest as $slug => $meta ) {
-			if ( '_version' === $slug ) {
-				continue;
-			}
-			/**
-			 * Narrowed type for `$meta_array`.
-			 *
-			 * @var array<string,mixed> $meta_array
-			 */
-			$meta_array = is_array( $meta ) ? $meta : array();
-			$normalized = Snippet_Store::normalize_snippet( $meta_array );
-			$snippets[] = array(
-				'slug'        => $slug,
-				'title'       => $normalized['title'],
-				'files'       => $normalized['files'],
-				'enabled'     => (bool) $normalized['enabled'],
-				'description' => $normalized['description'],
-				'execution'   => $normalized['execution'],
-				'conditions'  => $normalized['conditions'],
-			);
-		}
-
+		$snippets = Snippet_Store::list_summaries();
 		return Response::success(
-			count( $snippets ) . ' snippets found.',
+			sprintf( '%d snippet(s) found.', count( $snippets ) ),
 			array(
 				'count'    => count( $snippets ),
 				'snippets' => $snippets,

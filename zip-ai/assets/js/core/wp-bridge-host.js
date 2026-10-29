@@ -289,14 +289,38 @@ return null;
             this.loadSavedSidebarWidth();
             this.setupInlineEditShortcut();
             this.restorePanelLayout();
+            this.setupPopoverDrag();
+            this.checkAutoOpen();
+            this.restorePanelState();
+        }
+
+        setupPopoverDrag() {
             if ( window.zipwpPopoverDrag ) {
                 const bridge = this;
                 window.zipwpPopoverDrag.setup( function() {
  return bridge._panelLayout || 'sidebar';
 } );
             }
-            this.checkAutoOpen();
+        }
+
+        // The ZIP AI screen's snippets route docks the chat in a container made
+        // after boot; wire it as setup() wires every other admin page's.
+        // ponytail: each dock re-adds the resize handle's document touch listeners (inert once its handle is gone).
+        dockPanel() {
+            this.loadSavedSidebarWidth();
+            this.setupResizeHandle();
+            this.restorePanelLayout();
+            this.setupPopoverDrag();
             this.restorePanelState();
+        }
+
+        // Leaving the snippets route hides the docked chat without changing the
+        // user's open/closed choice.
+        undockPanel() {
+            const container = document.getElementById( 'zip-ai-assistant-container' );
+            if ( container && container.classList.contains( 'zip-ai-iframe-visible' ) ) {
+                this.hidePanel( container );
+            }
         }
 
         // ── Panel Toggle ──────────────────────────────────────────────
@@ -402,16 +426,7 @@ return;
             const isVisible = container.classList.contains( 'zip-ai-iframe-visible' );
 
             if ( isVisible ) {
-                container.classList.remove( 'zip-ai-iframe-visible' );
-                document.body.classList.remove( 'zip-ai-assistant-open' );
-                this.toggleFullscreen( false );
-                // Make hidden container fully non-interactive (prevents click interception).
-                container.setAttribute( 'inert', '' );
-
-                // Disable block context picker when sidebar closes
-                if ( window.zipwpMcpContextPicker ) {
-                    window.zipwpMcpContextPicker.disable();
-                }
+                this.hidePanel( container );
 
                 try {
  localStorage.setItem( 'zipwp-panel-open', '0' );
@@ -430,6 +445,19 @@ return;
                 try {
  localStorage.setItem( 'zipwp-panel-open', '1' );
 } catch ( e ) {}
+            }
+        }
+
+        hidePanel( container ) {
+            container.classList.remove( 'zip-ai-iframe-visible' );
+            document.body.classList.remove( 'zip-ai-assistant-open' );
+            this.toggleFullscreen( false );
+            // Make hidden container fully non-interactive (prevents click interception).
+            container.setAttribute( 'inert', '' );
+
+            // Disable block context picker when sidebar closes
+            if ( window.zipwpMcpContextPicker ) {
+                window.zipwpMcpContextPicker.disable();
             }
         }
 
@@ -498,10 +526,6 @@ return;
         }
 
         restorePanelState() {
-            // Skip in full-page mode — panel is always visible there.
-            if ( this.config.displayMode === 'fullpage' ) {
-return;
-}
             // Skip if checkAutoOpen already scheduled a deferred toggle — avoid double-toggle race.
             if ( this._autoOpened ) {
 return;

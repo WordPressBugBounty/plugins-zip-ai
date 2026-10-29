@@ -379,7 +379,7 @@ class AJAX_Handlers {
 
 		// Redirect back to the assistant screen after successful authentication.
 		// This prevents users from landing on a generic admin URL with callback query params.
-		wp_safe_redirect( admin_url( 'options-general.php?page=zip-ai-assistant' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=zip-ai-assistant' ) );
 		exit;
 	}
 

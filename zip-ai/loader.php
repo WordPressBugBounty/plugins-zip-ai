@@ -214,7 +214,7 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			define( 'ZIPAI_MCP_FILE', __DIR__ . '/zip-ai.php' );
 			define( 'ZIPAI_MCP_DIR', plugin_dir_path( ZIPAI_MCP_FILE ) );
 			define( 'ZIPAI_MCP_URL', plugins_url( '/', ZIPAI_MCP_FILE ) );
-			define( 'ZIPAI_MCP_VERSION', '0.0.14' );
+			define( 'ZIPAI_MCP_VERSION', '0.0.15' );
 			define( 'ZIPAI_MCP_MENU_SLUG', 'zip-ai' );
 
 			// Base URL for ZIP AI credit server.

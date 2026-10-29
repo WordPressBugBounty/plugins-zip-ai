@@ -1,6 +1,6 @@
 <?php
 /**
- * Snippet Admin - Mounts the React-based snippets management SPA.
+ * Snippet Admin - Snippets submenu + config for the ZIP AI app's snippets route.
  *
  * @since 0.1.0
  * @package zip-ai
@@ -18,14 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Snippet_Admin {
 
 	/**
-	 * Hook suffix of the registered submenu page.
+	 * Wire admin hooks (submenu registration + config).
 	 *
-	 * @var string
-	 */
-	private $hook_suffix = '';
-
-	/**
-	 * Wire admin hooks (submenu registration + asset enqueue).
+	 * Priority 11: both run after React_Manager registers the ZIP AI menu and
+	 * the chat-assistant bundle this config rides on.
 	 *
 	 * @return void
 	 */
@@ -34,12 +30,12 @@ class Snippet_Admin {
 			return;
 		}
 
-		add_action( 'admin_menu', array( $this, 'register_submenu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_menu', array( $this, 'register_submenu' ), 11 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ), 11 );
 	}
 
 	/**
-	 * Register the snippets management submenu page.
+	 * Register the snippets submenu: a hash route of the ZIP AI screen.
 	 *
 	 * @return void
 	 */
@@ -51,96 +47,31 @@ class Snippet_Admin {
 			return;
 		}
 
-		$this->hook_suffix = (string) add_submenu_page(
-			'options-general.php',
+		// ponytail: never called, the hash never reaches the server; WP needs a callback to link the slug as admin.php?page=.
+		add_submenu_page(
+			'zip-ai-assistant',
 			__( 'ZIP AI Code Snippets', 'zip-ai' ),
-			__( 'ZIP AI Code Snippets', 'zip-ai' ),
+			__( 'Code Snippets', 'zip-ai' ),
 			Snippet_Store::read_capability(),
-			'zip-ai-snippets',
-			array( $this, 'render_page' )
+			'zip-ai-assistant#/snippets',
+			'__return_null'
 		);
 	}
 
 	/**
-	 * Read a @wordpress/scripts asset manifest (dependencies + version).
-	 *
-	 * The path is a generated build artifact that may be absent (not committed),
-	 * so it is guarded with file_exists() and returns an empty array otherwise.
-	 *
-	 * @param string $path Absolute path to the generated *.asset.php file.
-	 * @return array<int|string, mixed>
-	 */
-	private function read_asset_manifest( $path ) {
-		return file_exists( $path ) ? (array) ( include $path ) : array();
-	}
-
-	/**
-	 * Enqueue the snippets SPA bundle, styles, and localized config.
+	 * Localize the snippets config onto the ZIP AI screen's app bundle.
 	 *
 	 * @param string $hook_suffix Current admin page hook suffix.
 	 * @return void
 	 */
 	public function enqueue_assets( $hook_suffix ) {
-		if ( $this->hook_suffix !== $hook_suffix ) {
+		if ( 'toplevel_page_zip-ai-assistant' !== $hook_suffix ) {
 			return;
 		}
 
-		// React SPA bundle.
-		$asset = $this->read_asset_manifest( ZIPAI_MCP_DIR . 'assets/js/dist/snippets-page.asset.php' );
-
-		$deps = array( 'react', 'react-dom' );
-		if ( isset( $asset['dependencies'] ) && is_array( $asset['dependencies'] ) ) {
-			$deps = array_map( static fn ( $d ): string => is_scalar( $d ) ? (string) $d : '', $asset['dependencies'] );
-		}
-		$version = isset( $asset['version'] ) && is_string( $asset['version'] ) ? $asset['version'] : ZIPAI_MCP_VERSION;
-
-		wp_enqueue_script(
-			'zip-ai-snippets-page',
-			ZIPAI_MCP_URL . 'assets/js/dist/snippets-page.js',
-			$deps,
-			$version,
-			true
-		);
-
-		// Single source of truth: enqueue the shared Tailwind/ZIP AI stylesheet built
-		// from src/styles/main.css. Tokens + utilities are scoped to both
-		// #chat-assistant-root and #zip-ai-snippets-root via tailwind.config.js.
-		wp_enqueue_style(
-			'zip-ai-snippets-page',
-			ZIPAI_MCP_URL . 'assets/css/dist/chat-assistant.css',
-			array(),
-			$version
-		);
-
-		// Mount point sits flush against the WP admin canvas. The SPA owns its
-		// own layout/padding via Tailwind — the `.wrap` chrome adds margins
-		// that fight the design, so we zero the margins WP injects on
-		// `#wpbody-content`'s default flow.
-		wp_add_inline_style(
-			'zip-ai-snippets-page',
-			'#wpbody-content { padding: 0; } #wpcontent { padding-left: 0; padding-top: 0; } #wpbody { padding-top: 0 !important; } #wpfooter { display: none !important; } #zip-ai-snippets-root-wrap { margin: 0; padding: 0; }'
-		);
-
-		// CodeMirror 6 editor.
-		$editor_asset = $this->read_asset_manifest( ZIPAI_MCP_DIR . 'assets/js/dist/snippet-editor.asset.php' );
-
-		$editor_deps = array();
-		if ( isset( $editor_asset['dependencies'] ) && is_array( $editor_asset['dependencies'] ) ) {
-			$editor_deps = array_map( static fn ( $d ): string => is_scalar( $d ) ? (string) $d : '', $editor_asset['dependencies'] );
-		}
-		$editor_version = isset( $editor_asset['version'] ) && is_string( $editor_asset['version'] ) ? $editor_asset['version'] : ZIPAI_MCP_VERSION;
-
-		wp_enqueue_script(
-			'zip-ai-snippet-editor',
-			ZIPAI_MCP_URL . 'assets/js/dist/snippet-editor.js',
-			$editor_deps,
-			$editor_version,
-			true
-		);
-
 		// Config for the React app.
 		wp_localize_script(
-			'zip-ai-snippets-page',
+			'zip-ai-chat-assistant',
 			'eraSnippetConfig',
 			array(
 				'restUrl'            => rest_url( 'zip-ai/v1/snippets' ),
@@ -246,16 +177,6 @@ class Snippet_Admin {
 				'safeModeActive'     => Snippet_Executor::is_persistent_safe_mode(),
 			)
 		);
-	}
-
-	/**
-	 * Render the React mount point.
-	 *
-	 * @return void
-	 */
-	public function render_page() {
-		// Canvas-reset CSS is enqueued via wp_add_inline_style() in enqueue_assets().
-		echo '<div id="zip-ai-snippets-root-wrap"><div id="zip-ai-snippets-root"></div></div>';
 	}
 
 	/**

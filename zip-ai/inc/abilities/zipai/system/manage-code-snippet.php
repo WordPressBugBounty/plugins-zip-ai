@@ -3,20 +3,20 @@
  * Manage Code Snippet Ability
  *
  * This ability can create, read, update, delete, enable, and disable code
- * snippets. Each snippet is a folder in wp-content/zip-ai-snippets/{slug}/.
- * The folder holds snippet.php, snippet.js, and snippet.css as needed.
+ * snippets. Each snippet is a folder in wp-content/zip-ai-snippets/ holding
+ * snippet.php, snippet.js, snippet.css and snippet.html as needed.
  *
  * You can configure how each type runs:
  * - PHP is included on a configured WordPress action. This includes safe custom hooks.
- * - JS is enqueued through WordPress enqueue actions.
- * - CSS is enqueued through WordPress enqueue actions.
+ * - JS and CSS are printed inline on their configured hook.
+ * - HTML is printed verbatim on its configured hook.
  *
  * Guardrails:
  * - validate_slug() prevents path traversal.
  * - A PHP blocklist rejects dangerous functions at create and update time.
  * - SHA-256 hashes check file integrity. A tampered file does not run.
  * - New snippets are DISABLED by default. The user must enable each one.
- * - An update saves the old code as a backup in snippet.{type}.bak.
+ * - Every write snapshots a version (Snippet_Versions).
  * - The code size limit is 100KB.
  * - An audit trail records the created_by and updated_by user IDs.
  *
@@ -116,14 +116,12 @@ class ManageCodeSnippet extends Abstract_Ability {
 	public function configure() {
 		$this->id          = 'zipai/run-snippet';
 		$this->label       = 'Manage Code Snippet';
-		$this->description = 'Site-wide PHP/JS/CSS/HTML snippets. '
-			. 'MANDATORY FIRST STEP for ANY add/create/install/install-tag/install-snippet request: call `action:"list"` BEFORE anything else (no smart-form, no `resolve_target`, no `create`). If a matching snippet already exists, switch to `action:"update"` on that slug and skip the smart-form intake. NEVER create a duplicate. '
-			. 'Conditions model: at most ONE row per type. Multi-value via `operator:"in"|"not_in"`/`starts_with`/`contains`/`ends_with`/`regex` (OR within row). Rows AND together. '
-			. 'DO NOT use for page content — use editor__apply_change with the page open in the block editor, and a core/html block for raw HTML embedded in a page. '
-			. 'Before authoring conditions for a named target ("shop page", "checkout", "blog"), call action=`resolve_target` to get the real post_id + post_type — never guess. '
-			. 'After any conditions change, call action=`simulate_match` against the target post to verify. '
-			. 'Every write returns `evaluated_targeting` (e.g. "Runs when post in [2800,2801] AND post_type=product") — read it to confirm intent. '
-			. 'Full rules in "Snippet Generator" prompt section.';
+		$this->description = 'Site-wide PHP/JS/CSS/HTML snippets, stored on the filesystem (wp-content/zip-ai-snippets), not in the database. '
+			. '`create` always adds a new snippet, saved disabled. It never merges with an existing one, so call `list` before `create` and `update` a snippet that already serves the purpose. '
+			. '`enable` / `disable` switch a snippet on or off; `update` keeps its current on/off state. '
+			. 'Not for page content (block markup inside a post). '
+			. '`resolve_target` turns a named page ("shop page", "checkout") into its post_id + post_type for `conditions`; `simulate_match` reports whether a snippet would fire for a given post / url / user / device. '
+			. '`create` and `update` return `evaluated_targeting` (e.g. "Runs when post in [2800,2801] AND post_type=product") and an `edit_url`.';
 		// Registers on the read capability so inspect / disable / delete keep
 		// working where the file editor is denied; `execute()` enforces
 		// Snippet_Store::manage_capability() for the write actions.
@@ -229,7 +227,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 						'resolve_target',
 						'trace',
 					),
-					'description' => 'Snippet lifecycle action. Versioning: list_versions, get_version, diff_versions, restore_version (destructive), create_manual_version. Diagnostics: `simulate_match` (does this snippet fire against a given post/url/user?), `resolve_target` (turn "shop page"/slug into concrete post_id+post_type before authoring conditions), `trace` (read last evaluation traces for a slug). Always call `resolve_target` before authoring conditions for a named page, and `simulate_match` after any conditions change to verify before claiming success.',
+					'description' => 'Snippet lifecycle action. Versioning: list_versions, get_version, diff_versions, restore_version (destructive), create_manual_version. Diagnostics: `simulate_match` (does this snippet fire against a given post/url/user?), `resolve_target` (turn "shop page"/slug into concrete post_id+post_type), `trace` (read last evaluation traces for a slug).',
 				),
 				'slug'               => array(
 					'type'        => 'string',
@@ -275,7 +273,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 				),
 				'query'              => array(
 					'type'        => 'string',
-					'description' => '`resolve_target` only. Natural-language label of a target page or archive (e.g. "shop page", "checkout", "blog", "product archive"). Server returns concrete matches (post ID + post_type, post-type archive, WooCommerce page mapping) and suggested condition rows. Always call this before authoring conditions for a named page.',
+					'description' => '`resolve_target` only. Natural-language label of a target page or archive (e.g. "shop page", "checkout", "blog", "product archive"). Server returns concrete matches (post ID + post_type, post-type archive, WooCommerce page mapping) and suggested condition rows.',
 				),
 				'reason'             => array(
 					'type'        => 'string',
@@ -319,7 +317,7 @@ class ManageCodeSnippet extends Abstract_Ability {
 						'properties' => array( 'action' => array( 'const' => 'get' ) ),
 						'required'   => array( 'action' ),
 					),
-					'then' => array( 'required' => array( 'action', 'slug', 'reason' ) ),
+					'then' => array( 'required' => array( 'action', 'slug' ) ),
 				),
 				array(
 					'if'   => array(
@@ -1344,20 +1342,20 @@ class ManageCodeSnippet extends Abstract_Ability {
 	/**
 	 * Build the wp-admin URL that opens a snippet in the ZIP AI editor.
 	 *
-	 * The snippets admin screen is a hash-routed SPA under
-	 * options-general.php?page=zip-ai-snippets; the edit view lives at the
-	 * `#/zip-ai/edit/{slug}` route (see src/snippets-page/App.jsx). Returned to
+	 * The snippets screen is the `#/snippets` route of the ZIP AI screen
+	 * (admin.php?page=zip-ai-assistant); the edit view lives at the
+	 * `#/snippets/edit/{slug}` route (see src/snippets-page/App.jsx). Returned to
 	 * the caller so it can surface a "open/edit" link after a write.
 	 *
 	 * @param string $slug Validated snippet slug.
 	 * @return string Absolute admin edit URL.
 	 */
 	private function snippet_edit_url( $slug ) {
-		return admin_url( 'options-general.php?page=zip-ai-snippets' ) . '#/zip-ai/edit/' . rawurlencode( $slug );
+		return admin_url( 'admin.php?page=zip-ai-assistant' ) . '#/snippets/edit/' . rawurlencode( $slug );
 	}
 
 	/**
-	 * Create a snippet, or add a file type to an existing one.
+	 * Create a new snippet. An existing slug is refused, never modified.
 	 *
 	 * @param array<string,mixed> $input Action input.
 	 * @return array<string,mixed> Response payload.
@@ -1507,28 +1505,9 @@ class ManageCodeSnippet extends Abstract_Ability {
 	 * @return array<string,mixed> Response payload.
 	 */
 	private function list_snippets() {
-		$manifest = Snippet_Store::load();
-		$snippets = array();
-
-		foreach ( $manifest as $slug => $meta ) {
-			if ( '_version' === $slug ) {
-				continue;
-			}
-			$normalized = Snippet_Store::normalize_snippet( $this->to_arr( $meta ) );
-			$snippets[] = array(
-				'slug'                => $slug,
-				'title'               => $normalized['title'],
-				'files'               => $normalized['files'],
-				'enabled'             => $normalized['enabled'],
-				'description'         => $normalized['description'],
-				'execution'           => $normalized['execution'],
-				'conditions'          => $normalized['conditions'],
-				'evaluated_targeting' => Snippet_Store::describe_conditions( array_values( $this->to_arr( $normalized['conditions'] ) ) ),
-			);
-		}
-
+		$snippets = Snippet_Store::list_summaries();
 		return Response::success(
-			count( $snippets ) . ' snippets found.',
+			sprintf( '%d snippet(s) found.', count( $snippets ) ),
 			array(
 				'count'    => count( $snippets ),
 				'snippets' => $snippets,
@@ -1567,6 +1546,8 @@ class ManageCodeSnippet extends Abstract_Ability {
 
 		$saved_conditions = $this->to_arr( $meta['conditions'] ?? array() );
 		$meta_title       = Utils::to_str( $meta['title'] ?? '' );
+		// The randomized on-disk dir name exists so the path is not guessable.
+		unset( $meta['dir'] );
 		return Response::success(
 			"Snippet: {$meta_title}",
 			array_merge(
@@ -1710,6 +1691,12 @@ class ManageCodeSnippet extends Abstract_Ability {
 
 		if ( $has_code_update && in_array( $update_type, $remove_types, true ) ) {
 			return Response::error( 'remove_types cannot include the same type being updated.' );
+		}
+
+		$current_files = array_values( array_intersect( $this->get_types(), $this->to_str_list( $meta['files'] ?? array() ) ) );
+		$missing_types = array_values( array_diff( $remove_types, $current_files ) );
+		if ( ! empty( $missing_types ) ) {
+			return $this->missing_files_error( $slug, $missing_types, $current_files );
 		}
 
 		if ( ! empty( $remove_types ) ) {
@@ -1886,45 +1873,27 @@ class ManageCodeSnippet extends Abstract_Ability {
 
 		$entry = $this->to_arr( $manifest[ $slug ] );
 
-		if ( ! empty( $input['dry_run'] ) ) {
-			$dry_title = Utils::to_str( $entry['title'] ?? '' );
-			return Response::success( "Dry run — would delete: {$dry_title}" );
-		}
-
-		// Delete specific file type if specified.
+		// Delete one file type when `type` names one and others remain;
+		// removing the last file deletes the whole snippet below.
 		if ( ! empty( $input['type'] ) ) {
-			$type     = Utils::to_str( $input['type'] );
-			$filepath = Snippet_Store::snippet_file( $slug, $type );
-
-			if ( file_exists( $filepath ) ) {
-				wp_delete_file( $filepath );
+			$type  = Utils::to_str( $input['type'] );
+			$files = $this->to_str_list( $entry['files'] ?? array() );
+			if ( ! in_array( $type, $files, true ) ) {
+				return $this->missing_files_error( $slug, array( $type ), $files );
 			}
-
-			$files       = array_values( array_diff( $this->to_str_list( $entry['files'] ?? array() ), array( $type ) ) );
-			$file_hashes = $this->to_arr( $entry['file_hashes'] ?? array() );
-			unset( $file_hashes[ $type ] );
-			$entry['file_hashes'] = $file_hashes;
-			$entry['files']       = $files;
-			$entry['updated']     = current_time( 'mysql' );
-
-			if ( empty( $files ) ) {
-				$this->remove_snippet_dir( $slug );
-				$save_error = $this->save_manifest_entry( $slug, null, "Snippet '{$slug}' files were removed, but the snippet list could not be updated (manifest write failed). It may still appear until the delete is retried." );
+			if ( count( $files ) > 1 ) {
+				$this->remove_snippet_file_types( $slug, $entry, array( $type ) );
+				$entry['updated'] = current_time( 'mysql' );
+				$save_error       = $this->save_manifest_entry( $slug, $entry, "The {$type} file was removed, but the snippet list could not be updated (manifest write failed). Retry to reconcile it." );
 				if ( null !== $save_error ) {
 					return $save_error;
 				}
-				return Response::success( "Snippet '{$slug}' deleted (last file removed)." );
-			}
-
-				$save_error = $this->save_manifest_entry( $slug, $entry, "The {$type} file was removed, but the snippet list could not be updated (manifest write failed). Retry to reconcile it." );
-			if ( null !== $save_error ) {
-				return $save_error;
-			}
 				$ctx           = $this->agent_context();
 				$ctx['reason'] = sanitize_text_field( Utils::to_str( $input['reason'] ?? "Removed {$type} file via ZIP AI" ) );
 				$ctx['manual'] = false;
 				Snippet_Versions::create( $slug, $ctx );
 				return Response::success( "Removed {$type} file from snippet '{$slug}'." );
+			}
 		}
 
 		$this->remove_snippet_dir( $slug );
@@ -1941,6 +1910,18 @@ class ManageCodeSnippet extends Abstract_Ability {
 		Snippet_Store::clear_dir_cache();
 
 		return Response::success( "Snippet '{$slug}' deleted." );
+	}
+
+	/**
+	 * Error for a request naming file types the snippet does not have.
+	 *
+	 * @param string            $slug    Validated snippet slug.
+	 * @param array<int,string> $missing Requested file types the snippet lacks.
+	 * @param array<int,string> $files   File types the snippet has.
+	 * @return array<string,mixed> Error response.
+	 */
+	private function missing_files_error( $slug, array $missing, array $files ) {
+		return Response::error( "Snippet '{$slug}' has no " . implode( ', ', $missing ) . ' file. Files: ' . implode( ', ', $files ) . '.' );
 	}
 
 	/**

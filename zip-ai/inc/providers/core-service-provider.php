@@ -24,6 +24,7 @@ use ZipAI\MCP\Classes\React\React_Manager;
 use ZipAI\MCP\Classes\Admin\Snippet_Admin;
 use ZipAI\MCP\Classes\Imports\ImportTextureGate;
 use ZipAI\MCP\Classes\Imports\SureformsClassBridge;
+use ZipAI\MCP\Classes\Core\Live_Edit_Button;
 
 /**
  * Core Service Provider Class.
@@ -131,6 +132,14 @@ class Core_Service_Provider extends Service_Provider {
 				return new SureformsClassBridge();
 			}
 		);
+
+		// "Edit with ZIP AI" on the live site, for an admin viewing a page they can edit.
+		$this->container->singleton(
+			Live_Edit_Button::class,
+			function () {
+				return new Live_Edit_Button();
+			}
+		);
 	}
 
 	/**
@@ -151,6 +160,7 @@ class Core_Service_Provider extends Service_Provider {
 		$this->container->make( Snippet_Admin::class );
 		$this->container->make( ImportTextureGate::class );
 		$this->container->make( SureformsClassBridge::class );
+		$this->container->make( Live_Edit_Button::class );
 		$this->container->make( External_Mcp::class );
 		$this->container->make( Connection_REST_API::class );
 		$this->container->make( Plugin_Update_REST_API::class );

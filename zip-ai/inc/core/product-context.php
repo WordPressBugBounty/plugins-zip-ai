@@ -60,21 +60,20 @@ class Product_Context {
 	 * @var array<string,string>
 	 */
 	private const TOKEN_MAP = array(
-		'zip-ai-snippets' => 'snippets',
-		'woocommerce'     => 'woocommerce',
-		'sureforms'       => 'sureforms',
-		'suremail'        => 'suremail',
-		'surerank'        => 'surerank',
-		'surecookie'      => 'surecookie',
-		'surecontact'     => 'surecontact',
-		'surecart'        => 'surecart',
-		'sc-dashboard'    => 'surecart',
-		'cartflows'       => 'cartflows',
-		'spectra'         => 'spectra',
-		'latepoint'       => 'latepoint',
-		'sigmize'         => 'sigmize',
-		'elementor'       => 'elementor',
-		'astra'           => 'astra',
+		'woocommerce'  => 'woocommerce',
+		'sureforms'    => 'sureforms',
+		'suremail'     => 'suremail',
+		'surerank'     => 'surerank',
+		'surecookie'   => 'surecookie',
+		'surecontact'  => 'surecontact',
+		'surecart'     => 'surecart',
+		'sc-dashboard' => 'surecart',
+		'cartflows'    => 'cartflows',
+		'spectra'      => 'spectra',
+		'latepoint'    => 'latepoint',
+		'sigmize'      => 'sigmize',
+		'elementor'    => 'elementor',
+		'astra'        => 'astra',
 	);
 
 	/**
@@ -96,8 +95,8 @@ class Product_Context {
 		// Core WordPress Settings screens (Settings > General/Writing/Reading/
 		// Discussion/Media/Permalinks) all have a screen id prefixed `options-`.
 		// Match the id prefix ONLY — not parent_base — so plugin pages that
-		// merely sit under the Settings menu (id `settings_page_*`, including our
-		// own assistant/snippets pages) are not mistagged as core settings.
+		// merely sit under the Settings menu (id `settings_page_*`) are not
+		// mistagged as core settings.
 		if ( 0 === strpos( (string) $screen->id, 'options-' ) ) {
 			return 'wp-settings';
 		}

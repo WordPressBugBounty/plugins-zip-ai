@@ -36,9 +36,11 @@ class React_Manager {
 		// public frontend, so no floating trigger appears on the live site.
 		$this->enqueue_scripts_admin();
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
+		// admin_menu runs before WP's page-access check rejects the removed slugs.
+		add_action( 'admin_menu', array( $this, 'redirect_legacy_pages' ) );
 		add_action( 'admin_footer', array( $this, 'render_container' ) );
 
-		// Collapse WP sidebar and tag body on the dedicated full-page screen.
+		// Tag body on the dedicated full-page screen.
 		if ( is_admin() ) {
 			$page = isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( 'zip-ai-assistant' === $page ) {
@@ -51,15 +53,15 @@ class React_Manager {
 
 	/**
 	 * Add body classes for the dedicated full-page assistant screen.
-	 * `folded`                – collapses WP admin sidebar to icon-only mode.
 	 * `zip-ai-fullpage-page` – lets CSS target this page precisely.
+	 * `folded` – WP's own collapsed admin menu (icons only), so the assistant gets the width.
 	 *
 	 * @since 1.0.0
 	 * @param string $classes Existing body classes.
 	 * @return string
 	 */
 	public function add_fullpage_body_classes( $classes ) {
-		return $classes . ' folded zip-ai-fullpage-page';
+		return $classes . ' zip-ai-fullpage-page folded';
 	}
 
 	/**
@@ -74,7 +76,8 @@ class React_Manager {
 	}
 
 	/**
-	 * Register dedicated full-page assistant screen in WP admin.
+	 * Register the ZIP AI top-level menu. Its screen hosts one hash-routed app:
+	 * the assistant at `#/`, snippets at `#/snippets` (submenu in Snippet_Admin).
 	 *
 	 * @since 1.0.0
 	 * @return void
@@ -84,13 +87,55 @@ class React_Manager {
 			return;
 		}
 
-		add_options_page(
+		add_menu_page(
 			__( 'ZIP AI Assistant', 'zip-ai' ),
-			__( 'ZIP AI Assistant', 'zip-ai' ),
+			__( 'ZIP AI', 'zip-ai' ),
 			'manage_options',
 			'zip-ai-assistant',
-			array( $this, 'render_fullpage_screen' )
+			array( $this, 'render_fullpage_screen' ),
+			'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHBhdGggZmlsbD0iI2E3YWFhZCIgZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNOC44ODkgMEgyMy4xMTFBOC44ODkgOC44ODkgMCAwIDEgMzIgOC44ODlWMjMuMTExQTguODg5IDguODg5IDAgMCAxIDIzLjExMSAzMkg4Ljg4OUE4Ljg4OSA4Ljg4OSAwIDAgMSAwIDIzLjExMVY4Ljg4OUE4Ljg4OSA4Ljg4OSAwIDAgMSA4Ljg4OSAwWk0xMC42MTYzIDkuMDQ0NzRDMTQuNjg4NiA4LjM4OTA3IDIxLjUxNjEgOC41MjE4OSAyMi42MDM2IDguNTU2NDZDMjIuNjY4OCA4LjU1MTM5IDIyLjcyNDYgOC42MzE4OSAyMi42Nzk3IDguNjg2MzRDMjIuNDQ3MyA5LjA3ODA2IDIxLjYwNTggMTAuMjk4OSAxOS4zMjMzIDEyLjAwNDdDMTkuMjYwNiAxMi4wNDM1IDE5LjI4NzYgMTIuMTc3MSAxOS4zNjkyIDEyLjE3MDdDMjAuMTYwNSAxMi4yMTExIDIyLjgwMjUgMTIuMjQzIDI2Ljk5NzEgMTEuNzk5NkMyNy4wNzc4IDExLjc5NDIgMjcuMTMwNiAxMS44NTcgMjcuMTAzNiAxMS45MjY2QzI2LjgyNjggMTIuNTkzNSAyNS4zOTk5IDE1LjM3MTQgMjAuNDcwOCAxNy42OTAyQzIwLjM3NTcgMTcuNzMxOCAyMC40MDQxIDE3Ljg4MjQgMjAuNTAyIDE3Ljg3NDhMMjQuNjQzNiAxNy44OTM0QzI0LjcyNjIgMTcuOTA0MiAyNC43ODI2IDE4LjAwMDggMjQuNzIxNyAxOC4wNTY1QzIzLjgxOCAxOS4xMTE3IDE4LjM0MjYgMjQuOTcyIDEwLjI4MDMgMjMuMTE4QzcuMTAxNzMgMjIuMzc5NSA0LjkwMTcgMTkuNDQyMiA0Ljg4ODczIDE1Ljg5MzRDNC44NzU5NSAxMi4zNDQ0IDcuMDEzMzIgOS42MTMwNiAxMC42MTYzIDkuMDQ0NzRaTTEyLjY4OTUgMTMuNzU1N0MxMi42MTIgMTMuNTQzNyAxMi4zMTIgMTMuNTQzNyAxMi4yMzQ0IDEzLjc1NTdMMTIuMDAzIDE0LjM4ODVDMTEuODIxMyAxNC44ODQ2IDExLjUzMzcgMTUuMzM1MiAxMS4xNjAyIDE1LjcwODhDMTAuNzg2NSAxNi4wODI1IDEwLjMzNTIgMTYuMzY5OSA5LjgzODkyIDE2LjU1MTZMOS4yMDYxMSAxNi43ODRDOC45OTQ1MSAxNi44NjE3IDguOTk0MzYgMTcuMTYxNSA5LjIwNjExIDE3LjIzOTFMOS44Mzg5MiAxNy40NzA1QzEwLjMzNTIgMTcuNjUyMiAxMC43ODY1IDE3LjkzOTYgMTEuMTYwMiAxOC4zMTMzQzExLjUzMzkgMTguNjg3IDExLjgyMTMgMTkuMTM4MyAxMi4wMDMgMTkuNjM0NkwxMi4yMzQ0IDIwLjI2NjRDMTIuMzEyIDIwLjQ3ODcgMTIuNjEyIDIwLjQ3ODcgMTIuNjg5NSAyMC4yNjY0TDEyLjkyMSAxOS42MzQ2QzEzLjEwMjYgMTkuMTM4MyAxMy4zOTEgMTguNjg3IDEzLjc2NDcgMTguMzEzM0MxNC4xMzgzIDE3LjkzOTcgMTQuNTg4OSAxNy42NTIyIDE1LjA4NSAxNy40NzA1TDE1LjcxNzggMTcuMjM5MUMxNS45MzAxIDE3LjE2MTUgMTUuOTMgMTYuODYxNiAxNS43MTc4IDE2Ljc4NEwxNS4wODUgMTYuNTUxNkMxNC41ODg5IDE2LjM2OTkgMTQuMTM4MyAxNi4wODI0IDEzLjc2NDcgMTUuNzA4OEMxMy4zOTEgMTUuMzM1MSAxMy4xMDI2IDE0Ljg4NDcgMTIuOTIxIDE0LjM4ODVMMTIuNjg5NSAxMy43NTU3Wk0xNS43OTIgMTEuODkyNEMxNS43NTMzIDExLjc4MjcgMTUuNjAzMyAxMS43ODI3IDE1LjU2NDUgMTEuODkyNEwxNS40NDgzIDEyLjIxOTVDMTUuMzU3NSAxMi40NzYzIDE1LjIxNDIgMTIuNzA5OCAxNS4wMjc0IDEyLjkwMzFDMTQuODQwNSAxMy4wOTY1IDE0LjYxNDQgMTMuMjQ1NiAxNC4zNjYzIDEzLjMzOTdMMTQuMDQ5OSAxMy40NTg4QzEzLjk0NDIgMTMuNDk5IDEzLjk0NDIgMTMuNjU0OSAxNC4wNDk5IDEzLjY5NTFMMTQuMzY2MyAxMy44MTQzQzE0LjYxNDQgMTMuOTA4MyAxNC44NDA1IDE0LjA1NzQgMTUuMDI3NCAxNC4yNTA4QzE1LjIxNDIgMTQuNDQ0MSAxNS4zNTc1IDE0LjY3NzYgMTUuNDQ4MyAxNC45MzQ0TDE1LjU2NDUgMTUuMjYxNUMxNS42MDMzIDE1LjM3MTQgMTUuNzUzMyAxNS4zNzE0IDE1Ljc5MiAxNS4yNjE1TDE1LjkwNzMgMTQuOTM0NEMxNS45OTgxIDE0LjY3NzYgMTYuMTQyMyAxNC40NDQyIDE2LjMyOTIgMTQuMjUwOEMxNi41MTYgMTQuMDU3NSAxNi43NDEyIDEzLjkwODMgMTYuOTg5MyAxMy44MTQzTDE3LjMwNTcgMTMuNjk1MUMxNy40MTE5IDEzLjY1NSAxNy40MTE5IDEzLjQ5ODkgMTcuMzA1NyAxMy40NTg4TDE2Ljk4OTMgMTMuMzM5N0MxNi43NDEzIDEzLjI0NTYgMTYuNTE2IDEzLjA5NjUgMTYuMzI5MiAxMi45MDMxQzE2LjE0MjMgMTIuNzA5OCAxNS45OTgxIDEyLjQ3NjMgMTUuOTA3MyAxMi4yMTk1TDE1Ljc5MiAxMS44OTI0Wk0yNi45OTcxIDExLjc5OTZIMjYuOTk1MkwyNy4wMTE4IDExLjc5ODZDMjcuMDA2OSAxMS43OTkyIDI3LjAwMiAxMS43OTkxIDI2Ljk5NzEgMTEuNzk5NloiLz48L3N2Zz4=',
+			30
 		);
+
+		// The assistant's submenu is the `#/` route, so coming back from
+		// snippets is a hash change, not a reload. It replaces WP's auto-added
+		// copy of the menu item, and the menu item links to it too.
+		// ponytail: never called, the hash never reaches the server; WP needs a callback to link the slug as admin.php?page=.
+		add_submenu_page(
+			'zip-ai-assistant',
+			__( 'ZIP AI Assistant', 'zip-ai' ),
+			__( 'Assistant', 'zip-ai' ),
+			'manage_options',
+			'zip-ai-assistant#/',
+			'__return_null'
+		);
+		remove_submenu_page( 'zip-ai-assistant', 'zip-ai-assistant' );
+	}
+
+	/**
+	 * Send the screens that lived under Settings to the ZIP AI menu, so saved
+	 * links keep working.
+	 *
+	 * @return void
+	 */
+	public function redirect_legacy_pages() {
+		global $pagenow;
+
+		$routes = array(
+			'zip-ai-assistant' => '',
+			'zip-ai-snippets'  => '#/snippets',
+		);
+		$page   = isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'options-general.php' !== $pagenow || ! isset( $routes[ $page ] ) ) {
+			return;
+		}
+
+		// Only the screen moves: the query (ZipWP's auto_open + prompt, an OAuth callback) rides along.
+		$uri   = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$query = (string) wp_parse_url( $uri, PHP_URL_QUERY );
+		// wp_redirect: wp_safe_redirect allows only the home host, but admin_url() may be on another (split-host sites).
+		wp_redirect( add_query_arg( 'page', 'zip-ai-assistant', admin_url( 'admin.php?' . $query ) ) . $routes[ $page ] );
+		exit;
 	}
 
 	/**
@@ -277,7 +322,7 @@ class React_Manager {
 				'canManageConnection' => current_user_can( 'manage_options' ),
 				'displayMode'         => $this->is_fullpage_screen() ? 'fullpage' : 'sidebar',
 				'adminHomeUrl'        => admin_url(),
-				'fullPageUrl'         => admin_url( 'options-general.php?page=zip-ai-assistant' ),
+				'fullPageUrl'         => admin_url( 'admin.php?page=zip-ai-assistant' ),
 				'userId'              => get_current_user_id(),
 				'domain'              => wp_parse_url( home_url(), PHP_URL_HOST ),
 				'site_url'            => home_url(),
@@ -525,7 +570,7 @@ class React_Manager {
 				'state'       => $state,
 				'zip-ai-auth' => 'true',
 			),
-			admin_url( 'options-general.php?page=zip-ai-assistant' )
+			admin_url( 'admin.php?page=zip-ai-assistant' )
 		);
 
 		$auth_middleware = ZIPAI_MCP_MIDDLEWARE;
@@ -646,7 +691,7 @@ class React_Manager {
 		}
 
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( $screen && 'settings_page_zip-ai-assistant' === $screen->id ) {
+		if ( $screen && 'toplevel_page_zip-ai-assistant' === $screen->id ) {
 			return true;
 		}
 

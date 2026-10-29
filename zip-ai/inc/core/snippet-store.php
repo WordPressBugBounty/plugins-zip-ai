@@ -810,8 +810,10 @@ class Snippet_Store {
 	 *   "Runs when post_type=product"
 	 *   "Runs when post in [2800,2801] AND post_type=product"
 	 *
-	 * Under the one-row-per-type model the description is always a flat AND
-	 * of row strings — no parenthesization, no group rendering.
+	 *   "Runs when (post in [2051] AND user_role=administrator) OR device=mobile"
+	 *
+	 * Rows AND into chains; a `connector:"or"` row starts a new chain, and
+	 * multi-row chains are parenthesized when more than one chain exists.
 	 *
 	 * @since 0.0.5
 	 * @param mixed $conditions Persisted condition rows (unknowable external input).
@@ -978,6 +980,40 @@ class Snippet_Store {
 				'scope'    => 'frontend',
 			),
 		);
+	}
+
+	/**
+	 * Every registered snippet as the agent-facing summary row — the one shape
+	 * both `zipai/list-snippets` and `zipai/run-snippet` `list` return.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function list_summaries() {
+		$snippets = array();
+		foreach ( self::load() as $slug => $meta ) {
+			if ( '_version' === $slug ) {
+				continue;
+			}
+			/**
+			 * Narrowed type for `$meta_array`.
+			 *
+			 * @var array<string,mixed> $meta_array
+			 */
+			$meta_array = is_array( $meta ) ? $meta : array();
+			$normalized = self::normalize_snippet( $meta_array );
+			$conditions = is_array( $normalized['conditions'] ) ? array_values( $normalized['conditions'] ) : array();
+			$snippets[] = array(
+				'slug'                => (string) $slug,
+				'title'               => $normalized['title'],
+				'files'               => $normalized['files'],
+				'enabled'             => (bool) $normalized['enabled'],
+				'description'         => $normalized['description'],
+				'execution'           => $normalized['execution'],
+				'conditions'          => $conditions,
+				'evaluated_targeting' => self::describe_conditions( $conditions ),
+			);
+		}
+		return $snippets;
 	}
 
 	/**

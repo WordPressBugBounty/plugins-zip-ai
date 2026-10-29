@@ -187,7 +187,7 @@ class Snippet_Executor {
 	}
 
 	/**
-	 * Boot the executor: register the safe-mode notice, shutdown handler, and snippets.
+	 * Boot the executor: register the shutdown handler and snippets.
 	 *
 	 * @return void
 	 */
@@ -195,9 +195,6 @@ class Snippet_Executor {
 		if ( self::is_safe_mode() ) {
 			return;
 		}
-
-		// Show admin notice when safe mode is active.
-		add_action( 'admin_notices', array( __CLASS__, 'safe_mode_notice' ) );
 
 		register_shutdown_function( array( __CLASS__, 'shutdown_handler' ) );
 
@@ -228,29 +225,6 @@ class Snippet_Executor {
 		}
 
 		return false;
-	}
-
-	/**
-	 * Show admin notice when persistent safe mode is active.
-	 *
-	 * @since 0.0.5
-	 */
-	public static function safe_mode_notice(): void {
-		$expires = get_transient( 'zip_ai_snippets_safe_mode' );
-		if ( ! $expires ) {
-			return;
-		}
-
-		$remaining = is_numeric( $expires ) ? max( 0, (int) $expires - time() ) : 0;
-		$minutes   = $remaining > 0 ? ceil( $remaining / 60 ) : '?';
-
-		echo '<div class="notice notice-warning"><p>';
-		printf(
-			'🛡️ <strong>ZIP AI Snippets Safe Mode</strong> — All snippets are disabled (%s min remaining). Manage in <a href="%s">ZIP AI Code Snippets</a>.',
-			esc_html( (string) $minutes ),
-			esc_url( admin_url( 'options-general.php?page=zip-ai-snippets' ) )
-		);
-		echo '</p></div>';
 	}
 
 	/**
