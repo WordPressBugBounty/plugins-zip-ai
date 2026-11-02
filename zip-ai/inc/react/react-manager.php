@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use ZipAI\MCP\Classes\Abilities\Zipai\System\PluginResolver;
 use ZipAI\MCP\Classes\Core\Helper;
 use ZipAI\MCP\Classes\Core\Product_Context;
+use ZipAI\MCP\Classes\Services\Browser_Token;
 use ZipAI\MCP\Classes\Traits\Enqueue;
 
 /**
@@ -261,8 +262,12 @@ class React_Manager {
 		);
 
 		// ── Localize React app config ──
-		// `token` — Sanctum credit token, sent as `Authorization: Bearer <token>`
-		// for server API auth.
+		// `token` — the short-lived BROWSER token (Browser_Token), sent as
+		// `Authorization: Bearer <token>` to the ZIP AI server. NEVER the site
+		// token: anything put here is readable by every script on the admin
+		// page, and the site token has no expiry and full account rights. The
+		// browser token expires in an hour, can only drive the agent, and is
+		// renewed through `browserTokenUrl` by src/services/request.js.
 		//
 		// The WordPress Application Password header is INTENTIONALLY NOT
 		// included here. It used to be emitted as `wpAuthorizationHeader`
@@ -294,6 +299,8 @@ class React_Manager {
 			? $zipwp_site_data['expire_at']
 			: null;
 
+		$browser_token = Browser_Token::get();
+
 		$this->localize_script(
 			'chat-assistant',
 			'ZIPAI_CONFIG',
@@ -309,7 +316,9 @@ class React_Manager {
 				// ZIPAI_BRAIN_URL constant (defined in loader.php); override in
 				// wp-config.php.
 				'brainUrl'            => rtrim( ZIPAI_BRAIN_URL, '/' ),
-				'token'               => Helper::get_decrypted_auth_token(),
+				'token'               => $browser_token['token'],
+				'tokenExpiresAt'      => $browser_token['expires_at'],
+				'browserTokenUrl'     => esc_url_raw( rest_url( 'zip-ai/v1/browser-token' ) ),
 				'isAuthenticated'     => Helper::is_authorized(),
 				// Per-layout import impact, from the SAME source the MCP
 				// `zipai/import-html` ability discloses to AI clients — so the

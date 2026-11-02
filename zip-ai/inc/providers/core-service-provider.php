@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use ZipAI\MCP\Classes\Core\Service_Provider;
 use ZipAI\MCP\Classes\Core\Tool_Registry;
 use ZipAI\MCP\Classes\Api\Connection_REST_API;
+use ZipAI\MCP\Classes\Api\Browser_Token_REST_API;
 use ZipAI\MCP\Classes\Api\Plugin_Update_REST_API;
 use ZipAI\MCP\Classes\Api\External_Mcp;
 use ZipAI\MCP\Classes\Api\REST_API;
@@ -94,6 +95,15 @@ class Core_Service_Provider extends Service_Provider {
 			}
 		);
 
+		// Browser-token renewal + the account writes a browser token may not
+		// make. Admin-only, cookie-authenticated; the site token stays in PHP.
+		$this->container->singleton(
+			Browser_Token_REST_API::class,
+			function () {
+				return new Browser_Token_REST_API();
+			}
+		);
+
 		// One-click "Update" for a plugin ZIP AI needs but finds too old.
 		// Admin-only, cookie-authenticated, update-existing only.
 		$this->container->singleton(
@@ -163,6 +173,7 @@ class Core_Service_Provider extends Service_Provider {
 		$this->container->make( Live_Edit_Button::class );
 		$this->container->make( External_Mcp::class );
 		$this->container->make( Connection_REST_API::class );
+		$this->container->make( Browser_Token_REST_API::class );
 		$this->container->make( Plugin_Update_REST_API::class );
 	}
 }

@@ -394,6 +394,9 @@ return [];
         }
     }
 
+    // `token` is the page's browser token (never the site token).
+    // src/services/request.js renews it in place ahead of expiry, so read it
+    // at call time, never cache it.
     function apiBase() {
         const cfg = window.ZIPAI_CONFIG || {};
         return { url: ( cfg.apiUrl || '/api' ).replace( /\/$/, '' ), token: cfg.token || '' };

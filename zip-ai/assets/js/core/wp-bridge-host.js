@@ -1714,6 +1714,8 @@ window.__zipwpLastToolResults = [];
  body.error = String( error );
 }
             const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+            // The page's browser token (never the site token). src/services/request.js
+            // renews it in place ahead of expiry, so read it at send time.
             if ( cfg.token ) {
  headers.Authorization = 'Bearer ' + cfg.token;
 }

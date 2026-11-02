@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.15
- * Build: 2026-10-29 13:06:50
+ * Version: 0.0.16
+ * Build: 2026-11-02 07:23:44
  */
 
 /**
@@ -8422,6 +8422,8 @@ window.__zipwpLastToolResults = [];
  body.error = String( error );
 }
             const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+            // The page's browser token (never the site token). src/services/request.js
+            // renews it in place ahead of expiry, so read it at send time.
             if ( cfg.token ) {
  headers.Authorization = 'Bearer ' + cfg.token;
 }

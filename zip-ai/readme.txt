@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.15
+Stable tag: 0.0.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -194,6 +194,9 @@ Please report security bugs found in the source code of the ZIP AI plugin throug
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.16 - November 2, 2026 =
+- Fix: Security hardening. The site's ZipWP access token no longer reaches the browser.
 
 = 0.0.15 - October 29, 2026 =
 - New: ZIP AI has its own admin menu, with Code Snippets inside and starter ideas to ask for one.
