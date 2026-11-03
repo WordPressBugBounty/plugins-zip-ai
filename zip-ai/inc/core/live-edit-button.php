@@ -32,7 +32,7 @@ class Live_Edit_Button {
 	 * @return string '' when the link does not apply.
 	 */
 	public static function edit_url() {
-		if ( is_admin() || is_customize_preview() || ! is_singular() || ! current_user_can( 'manage_options' ) ) {
+		if ( is_admin() || is_customize_preview() || is_preview() || ! is_singular() || ! current_user_can( 'manage_options' ) ) {
 			return '';
 		}
 		$post_id = get_queried_object_id();

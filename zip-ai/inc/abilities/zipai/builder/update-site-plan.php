@@ -131,7 +131,9 @@ class UpdateSitePlan extends Abstract_Ability {
 		}
 
 		// `rootAttrs` rides its own small option so a page never loads the plan.
-		$html_attrs = Site_Blueprint::html_attrs_from( isset( $decoded['rootAttrs'] ) ? $decoded['rootAttrs'] : null );
+		// The brain sends the `<html>` row the approved pages carry (the site, the levers, the accent).
+		$raw_attrs  = isset( $decoded['rootAttrs'] ) ? $decoded['rootAttrs'] : null;
+		$html_attrs = Site_Blueprint::html_attrs_from( $raw_attrs );
 		if ( array() === $html_attrs ) {
 			delete_option( Site_Blueprint::HTML_ATTRS_OPTION_KEY );
 		} else {

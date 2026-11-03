@@ -335,6 +335,9 @@ class React_Manager {
 				'userId'              => get_current_user_id(),
 				'domain'              => wp_parse_url( home_url(), PHP_URL_HOST ),
 				'site_url'            => home_url(),
+				// The site's own timezone, the brief's fallback when the browser names
+				// none (an IANA name, or an offset such as `+05:30`; `UTC` when unset).
+				'siteTimezone'        => wp_timezone_string(),
 				'user'                => array(
 					'id'    => get_current_user_id(),
 					'email' => Helper::get_setting( 'user_email', '' ),
