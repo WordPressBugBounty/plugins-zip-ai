@@ -5,9 +5,11 @@
  * A21 (render-interference inventory): authored pages declare webfonts the
  * import flow never installs, so weights the page uses render synthesized
  * (advance drift up to +17%) and visitor machines without local fonts degrade
- * to fallback families. This ability downloads the latin-subset woff2 files
- * server-side and registers them as core `wp_font_family` / `wp_font_face`
- * posts — the native Font Library store the Site Editor already understands.
+ * to fallback families. This ability requests the page's own css2 spec for a
+ * family, downloads every woff2 face Google serves for it server-side and
+ * registers each, with its own style, weight range, stretch and unicode-range,
+ * as core `wp_font_family` / `wp_font_face` posts — the native Font Library
+ * store the Site Editor already understands.
  *
  * Deliberately NO global-styles writes here: activation (merging Library
  * families into the user layer so core emits `@font-face`) is owned by the
@@ -45,7 +47,7 @@ class InstallFonts extends Abstract_Ability {
 	public function configure() {
 		$this->id          = 'zipai/install-fonts';
 		$this->label       = 'Install Fonts';
-		$this->description = 'Download Google Font families (latin woff2, requested weights) and register them in the WordPress Font Library. Idempotent per family slug + weight.';
+		$this->description = 'Download Google Font families (every woff2 face of the requested css2 spec, or of the requested weights) and register them in the WordPress Font Library. Idempotent per face.';
 
 		// Internal: called by the import committer with the page's fonts
 		// manifest — never a tool the agent should pick for itself.
@@ -77,10 +79,10 @@ class InstallFonts extends Abstract_Ability {
 			'properties' => array(
 				'families' => array(
 					'type'        => 'array',
-					'description' => 'Families to install, each with the numeric weights the page uses.',
+					'description' => 'Families to install, each with the css2 spec the page requests or the numeric weights it uses.',
 					'items'       => array(
 						'type'       => 'object',
-						'required'   => array( 'family', 'weights' ),
+						'required'   => array( 'family' ),
 						'properties' => array(
 							'family'  => array(
 								'type'        => 'string',
@@ -88,12 +90,16 @@ class InstallFonts extends Abstract_Ability {
 							),
 							'weights' => array(
 								'type'        => 'array',
-								'description' => 'Numeric font weights (100–900).',
+								'description' => 'Numeric font weights (100–900), requested when there is no spec.',
 								'items'       => array( 'type' => 'integer' ),
 							),
-							'opsz'    => array(
+							'spec'    => array(
 								'type'        => 'string',
-								'description' => 'Optional optical-size axis range (e.g. "9..144") when the source used the VARIABLE font. Present installs the opsz-variable woff2 so display-size headings do not rewrap against a static cut; absent stays static.',
+								'description' => 'Optional css2 axis spec the page requests for the family, verbatim (e.g. "ital,opsz,wght@0,7..72,200..900;1,7..72,200..900"). Present installs every face it serves.',
+							),
+							'stack'   => array(
+								'type'        => 'string',
+								'description' => 'Optional font stack the page declares for the family (e.g. "\'Literata\', serif"), kept as the family\'s fontFamily so its fallbacks hold.',
 							),
 						),
 					),
@@ -105,7 +111,7 @@ class InstallFonts extends Abstract_Ability {
 	/**
 	 * Install every requested family; per-family soft-fail.
 	 *
-	 * @param array<string,mixed> $args Ability arguments ({families:[{family, weights[]}]}).
+	 * @param array<string,mixed> $args Ability arguments ({families:[{family, weights[], spec?, stack?}]}).
 	 * @return array<string,mixed> Response envelope.
 	 */
 	public function execute( $args ) {
@@ -127,23 +133,26 @@ class InstallFonts extends Abstract_Ability {
 				$weights     = array_values( array_unique( array_filter( array_map( static fn ( $w ): int => is_scalar( $w ) ? (int) $w : 0, $weights_raw ), array( $this, 'is_valid_weight' ) ) ) );
 				sort( $weights );
 
-				if ( '' === $family || empty( $weights ) ) {
+				// The spec rides the css2 URL as written: axis tags, then numeric tuples only.
+				$spec = isset( $entry['spec'] ) && is_string( $entry['spec'] ) && preg_match( '/^[A-Za-z]+(?:,[A-Za-z]+)*@[-0-9.,;]+$/', $entry['spec'] ) ? $entry['spec'] : '';
+				// A stack is kept only when it leads with this family.
+				$stack = isset( $entry['stack'] ) && is_string( $entry['stack'] ) ? \WP_Font_Utils::sanitize_font_family( $entry['stack'] ) : '';
+				if ( 0 !== strcasecmp( trim( explode( ',', $stack )[0], " \"'" ), $family ) ) {
+					$stack = '';
+				}
+
+				if ( '' === $family || ( empty( $weights ) && '' === $spec ) ) {
 					$results[]   = array(
 						'family' => $family,
 						'status' => 'failed',
-						'error'  => 'family and at least one valid weight (100-900) are required.',
+						'error'  => 'family and a spec or at least one valid weight (100-900) are required.',
 						'faces'  => array(),
 					);
 					$any_failure = true;
 					continue;
 				}
 
-				$opsz = '';
-				if ( isset( $entry['opsz'] ) && is_string( $entry['opsz'] ) && preg_match( '/^\\d+(?:\\.\\.\\d+)?$/', $entry['opsz'] ) ) {
-					$opsz = $entry['opsz'];
-				}
-
-				$row       = $this->install_family( $family, $weights, $opsz );
+				$row       = $this->install_family( $family, '' !== $spec ? $spec : 'wght@' . implode( ';', $weights ), $stack );
 				$results[] = $row;
 				if ( 'failed' === $row['status'] ) {
 					$any_failure = true;
@@ -218,23 +227,22 @@ class InstallFonts extends Abstract_Ability {
 	}
 
 	/**
-	 * Install one family: fetch the css2 stylesheet, download each weight's
-	 * latin woff2 into the font directory, create the Library CPT entries.
+	 * Install one family: fetch its css2 stylesheet, download every woff2 face
+	 * it serves into the font directory, create the Library CPT entries.
 	 *
-	 * @param string    $family  Family name.
-	 * @param list<int> $weights Sorted unique numeric weights.
-	 * @param string    $opsz    Optical-size axis range (e.g. "9..144") or '' for the static cut.
+	 * @param string $family Family name.
+	 * @param string $spec   css2 axis spec (e.g. "ital,wght@0,400;1,400").
+	 * @param string $stack  Sanitized font stack led by the family, or '' for the name alone.
 	 * @return array<string,mixed> Per-family result row.
 	 */
-	private function install_family( $family, $weights, $opsz = '' ) {
+	private function install_family( $family, $spec, $stack = '' ) {
 		$slug      = sanitize_title( $family );
+		$name      = false !== strpos( $family, ' ' ) ? '"' . $family . '"' : $family;
 		$family_id = $this->find_family_post( $slug );
 		$faces     = array();
 		$created   = 0;
-		$existed   = 0;
 
-		// One css2 request covers every requested weight.
-		$css = $this->fetch_css2( $family, $weights, $opsz );
+		$css = $this->fetch_css2( $family, $spec );
 		if ( is_wp_error( $css ) ) {
 			return array(
 				'family' => $family,
@@ -245,7 +253,7 @@ class InstallFonts extends Abstract_Ability {
 			);
 		}
 
-		$sources = $this->parse_latin_woff2_sources( $css );
+		$sources = self::parse_faces( $css );
 		if ( empty( $sources ) ) {
 			return array(
 				'family' => $family,
@@ -267,42 +275,42 @@ class InstallFonts extends Abstract_Ability {
 			);
 		}
 
-		foreach ( $weights as $weight ) {
-			if ( ! isset( $sources[ $weight ] ) ) {
-				$faces[] = array(
-					'weight' => $weight,
-					'status' => 'failed',
-					'error'  => 'Weight not present in the css2 response (family may not ship it).',
-				);
-				continue;
-			}
+		$font_family = '' !== $stack ? $stack : $name;
+		if ( $family_id > 0 && '' !== $stack ) {
+			$this->update_family_stack( $family_id, $stack );
+		}
+
+		$files = array();
+		foreach ( $sources as $source ) {
+			$settings = array( 'fontFamily' => $name ) + $source['settings'];
+			$title    = \WP_Font_Utils::get_font_face_slug( $settings );
 
 			// Idempotency: face posts are deduped by core's face slug
 			// (family;style;weight;stretch;range) under the same parent.
-			if ( $family_id > 0 && $this->face_exists( $family_id, $family, $weight ) ) {
-				$faces[]  = array(
-					'weight' => $weight,
+			if ( $family_id > 0 && $this->face_exists( $family_id, $title ) ) {
+				$faces[] = array(
+					'face'   => $title,
 					'status' => 'existed',
 				);
-				$existed += 1;
 				continue;
 			}
 
-			$file = $this->download_face_file( $sources[ $weight ], $slug, $weight, $font_dir );
+			$file = $files[ $source['src'] ] ?? $this->download_face_file( $source['src'], $slug, $font_dir );
 			if ( is_wp_error( $file ) ) {
 				$faces[] = array(
-					'weight' => $weight,
+					'face'   => $title,
 					'status' => 'failed',
 					'error'  => $file->get_error_message(),
 				);
 				continue;
 			}
+			$files[ $source['src'] ] = $file;
 
 			if ( $family_id <= 0 ) {
-				$family_id = $this->create_family_post( $family, $slug );
+				$family_id = $this->create_family_post( $family, $slug, $font_family );
 				if ( $family_id <= 0 ) {
 					$faces[] = array(
-						'weight' => $weight,
+						'face'   => $title,
 						'status' => 'failed',
 						'error'  => 'Could not create the wp_font_family post.',
 					);
@@ -310,10 +318,10 @@ class InstallFonts extends Abstract_Ability {
 				}
 			}
 
-			$face_id = $this->create_face_post( $family_id, $family, $weight, $file['url'] );
+			$face_id = $this->create_face_post( $family_id, $title, $settings + array( 'src' => $file['url'] ) );
 			if ( $face_id <= 0 ) {
 				$faces[] = array(
-					'weight' => $weight,
+					'face'   => $title,
 					'status' => 'failed',
 					'error'  => 'Could not create the wp_font_face post.',
 				);
@@ -321,7 +329,7 @@ class InstallFonts extends Abstract_Ability {
 			}
 
 			$faces[]  = array(
-				'weight' => $weight,
+				'face'   => $title,
 				'status' => 'installed',
 				'url'    => $file['url'],
 			);
@@ -352,52 +360,14 @@ class InstallFonts extends Abstract_Ability {
 	}
 
 	/**
-	 * Fetch the Google css2 stylesheet for a family + weights with a woff2 UA.
+	 * Fetch the Google css2 stylesheet for a family + axis spec with a woff2 UA.
 	 *
-	 * @param string    $family  Family name.
-	 * @param list<int> $weights Numeric weights.
-	 * @param string    $opsz    Optical-size axis range (e.g. "9..144") or '' to skip the variable request.
+	 * @param string $family Family name.
+	 * @param string $spec   css2 axis spec (e.g. "ital,wght@0,400;1,400").
 	 * @return string|\WP_Error CSS body.
 	 */
-	private function fetch_css2( $family, $weights, $opsz = '' ) {
-		$weight_list = implode(
-			';',
-			array_map(
-				function ( $w ) {
-					return (string) $w;
-				},
-				$weights
-			)
-		);
-		// Prefer the VARIABLE (optical-size) font when the source used opsz — a
-		// static wght-only cut renders WIDER at display sizes, so headings rewrap.
-		// Fall through to the static request if the family ships no opsz axis.
-		if ( '' !== $opsz ) {
-			$tuples  = implode(
-				';',
-				array_map(
-					function ( $w ) use ( $opsz ) {
-						return $opsz . ',' . $w;
-					},
-					$weights
-				)
-			);
-			$var_url = 'https://fonts.googleapis.com/css2?family=' . rawurlencode( $family ) . ':opsz,wght@' . $tuples . '&display=swap';
-			$var     = wp_remote_get(
-				$var_url,
-				array(
-					'timeout'    => 20,
-					'user-agent' => self::WOFF2_USER_AGENT,
-				)
-			);
-			if ( ! is_wp_error( $var ) && 200 === (int) wp_remote_retrieve_response_code( $var ) ) {
-				$var_body = (string) wp_remote_retrieve_body( $var );
-				if ( '' !== $var_body ) {
-					return $var_body;
-				}
-			}
-		}
-		$url = 'https://fonts.googleapis.com/css2?family=' . rawurlencode( $family ) . ':wght@' . $weight_list . '&display=swap';
+	private function fetch_css2( $family, $spec ) {
+		$url = 'https://fonts.googleapis.com/css2?family=' . rawurlencode( $family ) . ':' . $spec . '&display=swap';
 
 		$response = wp_remote_get(
 			$url,
@@ -421,49 +391,43 @@ class InstallFonts extends Abstract_Ability {
 	}
 
 	/**
-	 * Parse the css2 body into weight → latin woff2 URL.
-	 *
-	 * The css2 format groups faces per unicode subset with a leading subset
-	 * comment (latin, latin-ext, cyrillic, ...). Normal-style blocks only are
-	 * requested; per weight the latin subset wins, with the first comment-less
-	 * block as fallback for responses without subset comments.
+	 * Every woff2 `@font-face` of a css2 body: its remote URL and its
+	 * descriptors as core face settings (`font-style` → `fontStyle`, and so on
+	 * for weight, stretch, unicode-range, display), latin and latin-ext first.
 	 *
 	 * @param string $css css2 response body.
-	 * @return array<int, string> Weight → woff2 URL.
+	 * @return list<array{subset:string,src:string,settings:array<string,string>}>
 	 */
-	private function parse_latin_woff2_sources( $css ) {
-		$latin    = array();
-		$fallback = array();
-
+	public static function parse_faces( $css ) {
+		$faces = array();
 		// Pair each optional subset comment with its @font-face block.
-		if ( ! preg_match_all( '#(?:/\*\s*([a-z0-9-]+)\s*\*/\s*)?@font-face\s*\{([^}]*)\}#i', $css, $matches, PREG_SET_ORDER ) ) {
-			return array();
-		}
-
-		foreach ( $matches as $m ) {
-			$subset = strtolower( trim( $m[1] ) );
-			$block  = $m[2];
-
-			if ( ! preg_match( '/font-weight\s*:\s*(\d{3})/i', $block, $wm ) ) {
+		preg_match_all( '#(?:/\*\s*([a-z0-9-]+)\s*\*/\s*)?@font-face\s*\{([^}]*)\}#i', $css, $blocks, PREG_SET_ORDER );
+		foreach ( $blocks as $block ) {
+			if ( ! preg_match( '/src\s*:[^;]*url\(\s*[\'"]?([^)\'"]+\.woff2)/i', $block[2], $src ) ) {
 				continue;
 			}
-			$weight = (int) $wm[1];
-
-			if ( ! preg_match( '/src\s*:[^;]*url\(\s*([^)]+\.woff2)\s*\)/i', $block, $sm ) ) {
-				continue;
+			$settings = array();
+			foreach ( explode( ';', $block[2] ) as $declaration ) {
+				$parts = explode( ':', $declaration, 2 );
+				$prop  = strtolower( trim( $parts[0] ) );
+				if ( 2 === count( $parts ) && '' !== $prop && 'src' !== $prop && 'font-family' !== $prop ) {
+					$settings[ lcfirst( str_replace( '-', '', ucwords( $prop, '-' ) ) ) ] = trim( $parts[1] );
+				}
 			}
-			$src = trim( $sm[1], " \t\n\r\0\x0B'\"" );
-
-			if ( 'latin' === $subset ) {
-				$latin[ $weight ] = $src;
-			} elseif ( ! isset( $fallback[ $weight ] ) || '' === $subset ) {
-				// Prefer comment-less blocks (single-subset responses); else
-				// keep the first non-latin subset seen as a last resort.
-				$fallback[ $weight ] = $src;
-			}
+			$faces[] = array(
+				'subset'   => strtolower( $block[1] ),
+				'src'      => $src[1],
+				'settings' => $settings,
+			);
 		}
-
-		return $latin + $fallback;
+		// shortcut: spectra-blocks' Font Library activation reads the first 50 faces of a family
+		// (by post ID), so the subsets a page most likely shows are created first; drop this once it reads all.
+		$rank = array(
+			'latin'     => 0,
+			'latin-ext' => 1,
+		);
+		usort( $faces, static fn ( $a, $b ) => ( $rank[ $a['subset'] ] ?? 2 ) <=> ( $rank[ $b['subset'] ] ?? 2 ) );
+		return $faces;
 	}
 
 	/**
@@ -471,11 +435,10 @@ class InstallFonts extends Abstract_Ability {
 	 *
 	 * @param string              $src      Remote woff2 URL.
 	 * @param string              $slug     Family slug.
-	 * @param int                 $weight   Font weight.
 	 * @param array<string,mixed> $font_dir wp_font_dir() array.
 	 * @return array{path:string,url:string}|\WP_Error { path, url } on success.
 	 */
-	private function download_face_file( $src, $slug, $weight, $font_dir ) {
+	private function download_face_file( $src, $slug, $font_dir ) {
 		$tmp = download_url( $src, 20 );
 		if ( is_wp_error( $tmp ) ) {
 			return $tmp;
@@ -494,7 +457,8 @@ class InstallFonts extends Abstract_Ability {
 
 		$dir_path = isset( $font_dir['path'] ) && is_string( $font_dir['path'] ) ? $font_dir['path'] : '';
 		$dir_url  = isset( $font_dir['url'] ) && is_string( $font_dir['url'] ) ? $font_dir['url'] : '';
-		$filename = sanitize_file_name( $slug . '-' . $weight . '-latin.woff2' );
+		// Google names each file for its contents, so the name is stable per face.
+		$filename = sanitize_file_name( $slug . '-' . basename( (string) wp_parse_url( $src, PHP_URL_PATH ) ) );
 		$dest     = trailingslashit( $dir_path ) . $filename;
 
 		// Deterministic filename — overwriting a partial prior download is the
@@ -537,12 +501,12 @@ class InstallFonts extends Abstract_Ability {
 	 * Create the wp_font_family post (core REST storage shape: name/slug on
 	 * the post, remaining settings as JSON content).
 	 *
-	 * @param string $family Family name.
-	 * @param string $slug   Family slug.
+	 * @param string $family      Family name.
+	 * @param string $slug        Family slug.
+	 * @param string $font_family The CSS font-family value (the page's stack, or the name).
 	 * @return int New post id, 0 on failure.
 	 */
-	private function create_family_post( $family, $slug ) {
-		$font_family = false !== strpos( $family, ' ' ) ? '"' . $family . '"' : $family;
+	private function create_family_post( $family, $slug, $font_family ) {
 		// wp_insert_post expects SLASHED data (core's font REST controller
 		// wraps with wp_slash too) — without it the JSON's escaped quotes
 		// lose their backslashes in content_save_pre and the stored settings
@@ -567,15 +531,39 @@ class InstallFonts extends Abstract_Ability {
 	}
 
 	/**
-	 * Whether a face for this family + weight already exists (core face slug).
+	 * Point an installed family's fontFamily at the page's stack, so the
+	 * preset the theme reads keeps the page's fallbacks.
+	 *
+	 * @param int    $family_id Family post id.
+	 * @param string $stack     Sanitized font stack.
+	 * @return void
+	 */
+	private function update_family_stack( $family_id, $stack ) {
+		$post     = get_post( $family_id );
+		$settings = $post instanceof \WP_Post ? json_decode( $post->post_content, true ) : null;
+		if ( ! is_array( $settings ) || ( $settings['fontFamily'] ?? '' ) === $stack ) {
+			return;
+		}
+		$settings['fontFamily'] = $stack;
+		// Slashed for the same reason as create_family_post.
+		wp_update_post(
+			wp_slash(
+				array(
+					'ID'           => $family_id,
+					'post_content' => (string) wp_json_encode( $settings ),
+				)
+			)
+		);
+	}
+
+	/**
+	 * Whether a face with this core face slug already exists under the family.
 	 *
 	 * @param int    $family_id Parent family post id.
-	 * @param string $family    Family name.
-	 * @param int    $weight    Font weight.
+	 * @param string $title     Core face slug (`WP_Font_Utils::get_font_face_slug`).
 	 * @return bool
 	 */
-	private function face_exists( $family_id, $family, $weight ) {
-		$title = \WP_Font_Utils::get_font_face_slug( $this->face_settings( $family, $weight, '' ) );
+	private function face_exists( $family_id, $title ) {
 		$posts = get_posts(
 			array(
 				'post_type'      => 'wp_font_face',
@@ -592,16 +580,12 @@ class InstallFonts extends Abstract_Ability {
 	/**
 	 * Create the wp_font_face post (core REST storage shape).
 	 *
-	 * @param int    $family_id Parent family post id.
-	 * @param string $family    Family name.
-	 * @param int    $weight    Font weight.
-	 * @param string $url       Self-hosted woff2 URL.
+	 * @param int                  $family_id Parent family post id.
+	 * @param string               $title     Core face slug.
+	 * @param array<string,string> $settings  Core face settings, src included.
 	 * @return int New post id, 0 on failure.
 	 */
-	private function create_face_post( $family_id, $family, $weight, $url ) {
-		$settings = $this->face_settings( $family, $weight, $url );
-		$title    = \WP_Font_Utils::get_font_face_slug( $settings );
-
+	private function create_face_post( $family_id, $title, $settings ) {
 		// Slashed for the same reason as create_family_post.
 		$post_id = wp_insert_post(
 			wp_slash(
@@ -616,26 +600,6 @@ class InstallFonts extends Abstract_Ability {
 			)
 		);
 		return (int) $post_id;
-	}
-
-	/**
-	 * Core-shaped font face settings.
-	 *
-	 * @param string $family Family name.
-	 * @param int    $weight Font weight.
-	 * @param string $url    Self-hosted woff2 URL ('' when only slugging).
-	 * @return array{fontFamily:string,fontStyle:string,fontWeight:string,src?:string}
-	 */
-	private function face_settings( $family, $weight, $url ) {
-		$settings = array(
-			'fontFamily' => false !== strpos( $family, ' ' ) ? '"' . $family . '"' : $family,
-			'fontStyle'  => 'normal',
-			'fontWeight' => (string) $weight,
-		);
-		if ( '' !== $url ) {
-			$settings['src'] = $url;
-		}
-		return $settings;
 	}
 
 	/**

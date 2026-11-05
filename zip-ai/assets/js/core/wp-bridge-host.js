@@ -537,9 +537,10 @@ return;
 }
 
             const alreadyOpen = container.classList.contains( 'zip-ai-iframe-visible' );
-            let wasOpen = false;
+            // Open by default: only a panel the user closed stays closed.
+            let wasOpen = true;
             try {
- wasOpen = localStorage.getItem( 'zipwp-panel-open' ) === '1';
+ wasOpen = localStorage.getItem( 'zipwp-panel-open' ) !== '0';
 } catch ( e ) {}
 
             if ( wasOpen && ! alreadyOpen ) {
@@ -552,7 +553,7 @@ return;
         // 'popover' = floating card, no viewport shrink
 
         restorePanelLayout() {
-            // Resolution (explicit choice wins; else context default) lives in the
+            // Resolution (explicit choice wins; else the docked sidebar) lives in the
             // ZIPWP_LAYOUT SSOT.
             const L = window.ZIPWP_LAYOUT;
             this._panelLayout = L ? L.resolveLayout() : 'sidebar';

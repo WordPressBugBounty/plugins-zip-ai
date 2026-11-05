@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.17
+Stable tag: 0.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -194,6 +194,13 @@ Please report security bugs found in the source code of the ZIP AI plugin throug
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.18 - November 5, 2026 =
+- New: Settings and Import pages in the ZIP AI menu, with a slimmer account menu and a warning before leaving unsaved changes.
+- New: Custom styles for your own colours and words, tag search for fonts and styles, and style cards showing each style's real look.
+- Improvement: The brief goes straight to the Look step once answered, and waits for every must-answer question.
+- Improvement: A cleaner loading card while each design builds.
+- Fix: Fonts on your published site match the preview exactly, weights and styles included.
 
 = 0.0.17 - November 3, 2026 =
 - New: Pick your colours, fonts and style in three quick steps, with palettes found by tag and a live preview of each style.

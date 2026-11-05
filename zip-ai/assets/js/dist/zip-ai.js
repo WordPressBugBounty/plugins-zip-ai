@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.17
- * Build: 2026-11-03 13:29:58
+ * Version: 0.0.18
+ * Build: 2026-11-05 13:41:38
  */
 
 /**
@@ -53,23 +53,7 @@
 			return value === this.layout.sidebar || value === this.layout.popover;
 		},
 
-		// Block-editor screens dock the sidebar beside the canvas; every other
-		// admin screen defaults to the floating popover. Uses the
-		// PHP-authoritative is_block_editor() flag with a DOM fallback.
-		isBlockEditorContext() {
-			const cfg = ( typeof window !== 'undefined' && window.zipwpIframeConfig ) || {};
-			if ( cfg.isBlockEditor ) {
-				return true;
-			}
-			try {
-				return document.body.classList.contains( 'block-editor-page' ) ||
-					!! document.querySelector( '.block-editor-block-list__layout' );
-			} catch ( e ) {
-				return false;
-			}
-		},
-
-		// Explicit stored choice wins everywhere; otherwise the context default.
+		// Explicit stored choice wins everywhere; otherwise the docked sidebar.
 		resolveLayout() {
 			let stored = null;
 			try {
@@ -78,7 +62,7 @@
 			if ( this.isValidLayout( stored ) ) {
 				return stored;
 			}
-			return this.isBlockEditorContext() ? this.layout.sidebar : this.layout.popover;
+			return this.layout.sidebar;
 		},
 
 		// Wipe every persisted layout + appearance preference. Broadcasts the
@@ -7245,9 +7229,10 @@ return;
 }
 
             const alreadyOpen = container.classList.contains( 'zip-ai-iframe-visible' );
-            let wasOpen = false;
+            // Open by default: only a panel the user closed stays closed.
+            let wasOpen = true;
             try {
- wasOpen = localStorage.getItem( 'zipwp-panel-open' ) === '1';
+ wasOpen = localStorage.getItem( 'zipwp-panel-open' ) !== '0';
 } catch ( e ) {}
 
             if ( wasOpen && ! alreadyOpen ) {
@@ -7260,7 +7245,7 @@ return;
         // 'popover' = floating card, no viewport shrink
 
         restorePanelLayout() {
-            // Resolution (explicit choice wins; else context default) lives in the
+            // Resolution (explicit choice wins; else the docked sidebar) lives in the
             // ZIPWP_LAYOUT SSOT.
             const L = window.ZIPWP_LAYOUT;
             this._panelLayout = L ? L.resolveLayout() : 'sidebar';

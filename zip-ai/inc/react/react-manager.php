@@ -37,6 +37,8 @@ class React_Manager {
 		// public frontend, so no floating trigger appears on the live site.
 		$this->enqueue_scripts_admin();
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
+		// After Code Snippets (priority 11), so the submenu reads Assistant, Code Snippets, Import, Settings.
+		add_action( 'admin_menu', array( $this, 'register_settings_submenus' ), 12 );
 		// admin_menu runs before WP's page-access check rejects the removed slugs.
 		add_action( 'admin_menu', array( $this, 'redirect_legacy_pages' ) );
 		add_action( 'admin_footer', array( $this, 'render_container' ) );
@@ -46,6 +48,7 @@ class React_Manager {
 			$page = isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( 'zip-ai-assistant' === $page ) {
 				add_filter( 'admin_body_class', array( $this, 'add_fullpage_body_classes' ) );
+				add_action( 'adminmenu', array( $this, 'unfold_for_page_routes' ) );
 				// Remove all admin notices on the fullpage assistant screen.
 				add_action( 'in_admin_header', array( $this, 'remove_admin_notices' ) );
 			}
@@ -56,13 +59,30 @@ class React_Manager {
 	 * Add body classes for the dedicated full-page assistant screen.
 	 * `zip-ai-fullpage-page` – lets CSS target this page precisely.
 	 * `folded` – WP's own collapsed admin menu (icons only), so the assistant gets the width.
+	 * `zip-ai-auto-folded` – the fold is ours, not the user's, so the page routes
+	 * (snippets, settings) unfold it.
 	 *
 	 * @since 1.0.0
 	 * @param string $classes Existing body classes.
 	 * @return string
 	 */
 	public function add_fullpage_body_classes( $classes ) {
-		return $classes . ' zip-ai-fullpage-page folded';
+		$auto = 'f' === get_user_setting( 'mfold' ) ? '' : ' zip-ai-auto-folded';
+		return $classes . ' zip-ai-fullpage-page folded' . $auto;
+	}
+
+	/**
+	 * The server cannot see the URL hash, so it folds the menu for every load of
+	 * this screen. A page route (snippets, settings, import) gets it back here,
+	 * before the first paint, instead of sliding open once React mounts.
+	 *
+	 * @since 0.0.18
+	 * @return void
+	 */
+	public function unfold_for_page_routes() {
+		?>
+		<script>if ( /^#\/(snippets|settings|import)\b/.test( location.hash ) && document.body.classList.contains( 'zip-ai-auto-folded' ) ) { document.body.classList.remove( 'folded' ); }</script>
+		<?php
 	}
 
 	/**
@@ -111,6 +131,17 @@ class React_Manager {
 			'__return_null'
 		);
 		remove_submenu_page( 'zip-ai-assistant', 'zip-ai-assistant' );
+	}
+
+	/**
+	 * Settings and Import are routes of the ZIP AI screen, `#/settings` and `#/import`.
+	 *
+	 * @return void
+	 */
+	public function register_settings_submenus() {
+		// ponytail: never called, the hash never reaches the server; WP needs a callback to link the slug as admin.php?page=.
+		add_submenu_page( 'zip-ai-assistant', __( 'ZIP AI Import', 'zip-ai' ), __( 'Import', 'zip-ai' ), 'manage_options', 'zip-ai-assistant#/import', '__return_null' );
+		add_submenu_page( 'zip-ai-assistant', __( 'ZIP AI Settings', 'zip-ai' ), __( 'Settings', 'zip-ai' ), 'manage_options', 'zip-ai-assistant#/settings', '__return_null' );
 	}
 
 	/**
