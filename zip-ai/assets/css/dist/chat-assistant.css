@@ -2119,6 +2119,11 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
     margin-top: calc(1.25rem * calc(1 - var(--tw-space-y-reverse)));
     margin-bottom: calc(1.25rem * var(--tw-space-y-reverse));
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) :is(.divide-x > :not([hidden]) ~ :not([hidden])){
+    --tw-divide-x-reverse: 0;
+    border-right-width: calc(1px * var(--tw-divide-x-reverse));
+    border-left-width: calc(1px * calc(1 - var(--tw-divide-x-reverse)));
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) :is(.divide-y > :not([hidden]) ~ :not([hidden])){
     --tw-divide-y-reverse: 0;
     border-top-width: calc(1px * calc(1 - var(--tw-divide-y-reverse)));
@@ -2396,6 +2401,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .border-background\/30{
     border-color: hsl(var(--background) / 0.3);
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .border-black\/10{
+    border-color: rgb(0 0 0 / 0.1);
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .border-black\/5{
     border-color: rgb(0 0 0 / 0.05);
@@ -5719,6 +5727,9 @@ body.zip-ai-stage-open {
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .first\:mt-0:first-child{
     margin-top: 0px;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .first\:border-l-0:first-child{
+    border-left-width: 0px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .last\:mb-0:last-child{
     margin-bottom: 0px;

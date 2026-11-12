@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.18
- * Build: 2026-11-05 13:41:38
+ * Version: 0.0.19
+ * Build: 2026-11-12 13:13:39
  */
 
 /**
@@ -6984,6 +6984,31 @@ return null;
             this.setupPopoverDrag();
             this.checkAutoOpen();
             this.restorePanelState();
+            // The full-page assistant is open by being visited: one `sidebar_opened` per load.
+            if ( this.config.displayMode === 'fullpage' ) {
+                this.sendClientEvent( 'sidebar_opened' );
+            }
+        }
+
+        // One of the plugin's funnel events, fire-and-forget (src/services/api.js clientEvent
+        // is the React side). No session id: the host has none, and a new user has none yet.
+        sendClientEvent( event ) {
+            const cfg = window.ZIPAI_CONFIG || {};
+            if ( ! cfg.brainUrl || ! cfg.token ) {
+                return;
+            }
+            try {
+                fetch( String( cfg.brainUrl ).replace( /\/+$/, '' ) + '/analytics/client-event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        Authorization: 'Bearer ' + cfg.token,
+                    },
+                    body: JSON.stringify( cfg.domain ? { event, domain: cfg.domain } : { event } ),
+                    keepalive: true,
+                } ).catch( function() {} );
+            } catch ( e ) {}
         }
 
         setupPopoverDrag() {
@@ -7023,7 +7048,7 @@ return null;
                 const trigger = e.target.closest( '#zip-ai-floating-trigger' );
                 if ( trigger ) {
                     e.preventDefault();
-                    self.togglePanel();
+                    self.togglePanel( true );
                 }
             } );
 
@@ -7082,7 +7107,7 @@ return;
                 // Primary shortcut: Cmd/Ctrl + E
                 if ( String( e.key ).toLowerCase() === 'e' ) {
                     e.preventDefault();
-                    self.togglePanel();
+                    self.togglePanel( true );
                     return;
                 }
 
@@ -7101,11 +7126,13 @@ return;
                 }
 
                 e.preventDefault();
-                self.togglePanel();
+                self.togglePanel( true );
             } );
         }
 
-        togglePanel() {
+        // `byUser`: the user's own open (launcher, shortcut), counted as `sidebar_opened`;
+        // a restored or auto-opened panel is not.
+        togglePanel( byUser = false ) {
             const container = document.getElementById( 'zip-ai-assistant-container' );
             if ( ! container ) {
                 // Full-page mode has no sidebar container. "Close" navigates back to admin home.
@@ -7128,6 +7155,9 @@ return;
                 container.classList.add( 'zip-ai-iframe-visible' );
                 document.body.classList.add( 'zip-ai-assistant-open' );
                 this.emitFullscreenChanged( container.classList.contains( 'zip-ai-iframe-fullscreen' ) );
+                if ( byUser ) {
+                    this.sendClientEvent( 'sidebar_opened' );
+                }
 
                 // Enable block context picker when sidebar opens
                 if ( window.zipwpMcpContextPicker ) {
@@ -8750,7 +8780,7 @@ popupWindow.close();
                     // Open sidebar if not visible
                     const container = document.getElementById( 'zip-ai-assistant-container' );
                     if ( container && ! container.classList.contains( 'zip-ai-iframe-visible' ) ) {
-                        self.togglePanel();
+                        self.togglePanel( true );
                     }
 
                     // Emit event for React to focus input and lock context

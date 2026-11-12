@@ -330,6 +330,13 @@ class React_Manager {
 			? $zipwp_site_data['expire_at']
 			: null;
 
+		// ZipWP's own funnel session for the journey that provisioned this site, so
+		// the server's analytics rows join ZipWP's on one key. Absent on a site ZipWP
+		// did not provision, or one provisioned before ZipWP sent it.
+		$funnel_session_id = ( is_array( $zipwp_site_data ) && isset( $zipwp_site_data['funnel_session_id'] ) && is_string( $zipwp_site_data['funnel_session_id'] ) && preg_match( '/^[A-Za-z0-9-]{1,64}$/', $zipwp_site_data['funnel_session_id'] ) )
+			? $zipwp_site_data['funnel_session_id']
+			: null;
+
 		$browser_token = Browser_Token::get();
 
 		$this->localize_script(
@@ -342,6 +349,9 @@ class React_Manager {
 				// surface has been dead. Follows WP_DEBUG; override with the filter
 				// for a UAT run on a site that isn't in debug mode.
 				'debug'               => (bool) apply_filters( 'zipai_frontend_debug', defined( 'WP_DEBUG' ) && WP_DEBUG ),
+				// Shows the grid card's Redesign button (re-fires the card's generation call), for local
+				// debugging. Off unless wp-config.php defines ZIPAI_DEBUG_REDESIGN as true.
+				'debugRedesign'       => defined( 'ZIPAI_DEBUG_REDESIGN' ) && ZIPAI_DEBUG_REDESIGN,
 				'apiUrl'              => rtrim( ZIPAI_MCP_CREDIT_SERVER_API, '/' ),
 				// Server base URL for direct calls (e.g. inline-edit). Set via the
 				// ZIPAI_BRAIN_URL constant (defined in loader.php); override in
@@ -375,6 +385,10 @@ class React_Manager {
 					'name'  => Helper::get_setting( 'user_name', '' ),
 				),
 				'expireAt'            => $expire_at,
+				// A site ZipWP provisioned carries the `zipwp_site_data` option; the
+				// upgrade CTAs send any other site to credits pricing, not plans.
+				'isZipwpSite'         => is_array( $zipwp_site_data ) && ! empty( $zipwp_site_data ),
+				'funnelSessionId'     => $funnel_session_id,
 				// Brand context for on-brand palette generation (colour picker).
 				'brandContext'        => $brand_context,
 				'nonce'               => wp_create_nonce( 'zip_ai_iframe' ),
