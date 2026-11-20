@@ -4,10 +4,9 @@
  *
  * This is the counterpart to `zipai/import-html`. The client's own model
  * writes the HTML. Without this snapshot the model writes blind. It knows
- * nothing about the palette, the fonts, the existing pages or the brand of the
- * site. So imported pages clash with the design. They also collide with
- * existing slugs. One call returns the facts to author HTML that fits THIS
- * site.
+ * nothing about the palette, the fonts or the existing pages of the site. So
+ * imported pages clash with the design. They also collide with existing
+ * slugs. One call returns the facts to author HTML that fits THIS site.
  *
  * The snapshot holds facts only. It gives no instructions. The palette is the
  * LIVE WordPress global palette. It is origin-aware. The user palette from the
@@ -23,8 +22,6 @@
  * Fonts are the resolved heading and body pairing from global styles. The code
  * follows the preset and custom var chains to the family string. Pages arrive
  * as slug and title. So links stay coherent and new slugs avoid collisions.
- * Brand context comes from the stored `zip_ai_brand_context` option when the
- * design system has captured one.
  *
  * @since 0.0.8
  * @package zip-ai
@@ -52,6 +49,13 @@ class GetSiteContext extends Abstract_Ability {
 	protected $is_destructive = false;
 
 	/**
+	 * 2.0.0: `brand_context` left the output.
+	 *
+	 * @var string
+	 */
+	protected $version = '2.0.0';
+
+	/**
 	 * Configures the ability's id, label, description and metadata.
 	 *
 	 * @return void
@@ -59,7 +63,7 @@ class GetSiteContext extends Abstract_Ability {
 	public function configure() {
 		$this->id          = 'zipai/get-site-context';
 		$this->label       = 'Get Site Context';
-		$this->description = 'Read-only snapshot of this site for authoring HTML that matches it: title/tagline/language/URL, active theme, the live colour palette (palette: slug/name/hex, user customisations included), the resolved heading/body font pairing, existing pages (slug, title, front page) and stored brand context. Call this BEFORE writing HTML for zipai/import-html: match the returned palette and fonts, and pick a slug that does not collide with an existing page.';
+		$this->description = 'Read-only snapshot of this site for authoring HTML that matches it: title/tagline/language/URL, active theme, the live colour palette (palette: slug/name/hex, user customisations included), the resolved heading/body font pairing, existing pages (slug, title, front page). Call this BEFORE writing HTML for zipai/import-html: match the returned palette and fonts, and pick a slug that does not collide with an existing page.';
 		// Read surface. Deliberately looser than the ingress floor (like
 		// run-rest-request): everything returned is design tokens and published
 		// page titles, and the `manage_options` MCP ingress dominates anyway.
@@ -106,7 +110,7 @@ class GetSiteContext extends Abstract_Ability {
 				'data'    => array(
 					'type'       => 'object',
 					'properties' => array(
-						'site'          => array(
+						'site'    => array(
 							'type'       => 'object',
 							'properties' => array(
 								'title'    => array( 'type' => 'string' ),
@@ -116,7 +120,7 @@ class GetSiteContext extends Abstract_Ability {
 								'logo_url' => array( 'type' => 'string' ),
 							),
 						),
-						'theme'         => array(
+						'theme'   => array(
 							'type'       => 'object',
 							'properties' => array(
 								'name'            => array( 'type' => 'string' ),
@@ -125,7 +129,7 @@ class GetSiteContext extends Abstract_Ability {
 							),
 						),
 						// Live global palette: [{ slug, name, hex }].
-						'palette'       => array(
+						'palette' => array(
 							'type'  => 'array',
 							'items' => array(
 								'type'       => 'object',
@@ -137,14 +141,14 @@ class GetSiteContext extends Abstract_Ability {
 							),
 						),
 						// Resolved font pairing: { heading?: string, body?: string }.
-						'fonts'         => array(
+						'fonts'   => array(
 							'type'       => 'object',
 							'properties' => array(
 								'heading' => array( 'type' => 'string' ),
 								'body'    => array( 'type' => 'string' ),
 							),
 						),
-						'pages'         => array(
+						'pages'   => array(
 							'type'  => 'array',
 							'items' => array(
 								'type'       => 'object',
@@ -155,7 +159,6 @@ class GetSiteContext extends Abstract_Ability {
 								),
 							),
 						),
-						'brand_context' => array( 'type' => 'object' ),
 					),
 				),
 			),
@@ -234,16 +237,6 @@ class GetSiteContext extends Abstract_Ability {
 			);
 		}
 
-		// Stored by the design system; may be a JSON string or an array
-		// (same tolerant read as the chat panel's ZIPAI_CONFIG.brandContext).
-		$brand_context = get_option( 'zip_ai_brand_context', array() );
-		if ( is_string( $brand_context ) ) {
-			$brand_context = json_decode( $brand_context, true );
-		}
-		if ( ! is_array( $brand_context ) ) {
-			$brand_context = array();
-		}
-
 		$data = array(
 			'site'  => $site,
 			'theme' => array(
@@ -262,9 +255,6 @@ class GetSiteContext extends Abstract_Ability {
 		if ( ! empty( $fonts ) ) {
 			$data['fonts'] = $fonts;
 		}
-		if ( ! empty( $brand_context ) ) {
-			$data['brand_context'] = $brand_context;
-		}
 
 		$message = sprintf(
 			'Site context for "%s": %d pages, %s.',
@@ -272,7 +262,7 @@ class GetSiteContext extends Abstract_Ability {
 			count( $pages ),
 			! empty( $palette )
 				? 'a palette of ' . count( $palette ) . ' colours'
-				: 'no global palette (rely on brand_context or ask the user)'
+				: 'no global palette (ask the user)'
 		);
 
 		return Response::success( $message, $data );

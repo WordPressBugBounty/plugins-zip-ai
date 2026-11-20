@@ -206,6 +206,8 @@ class InstallBundledPlugin extends Abstract_Ability {
 		}
 
 		$was_active = is_plugin_active( $existing_file ) || is_plugin_active_for_network( $existing_file );
+		// read before activating: this activation runs the plugin's own installer
+		$first_run = Plugin_Abilities_Toggler::first_run( $slug );
 		if ( $activate && ! $was_active ) {
 			$activation = activate_plugin( $existing_file );
 			if ( is_wp_error( $activation ) ) {
@@ -228,7 +230,13 @@ class InstallBundledPlugin extends Abstract_Ability {
 			}
 		}
 
-		$toggle_result = Plugin_Abilities_Toggler::enable_for_slug( $slug );
+		// "ERA installed it" means THIS call installed or activated a plugin that had
+		// never run here — never that this ability happened to be the caller, nor that
+		// it woke a store the owner set up and deactivated. The builder calls it on
+		// every batch, active store included, and an `install_only` entry (the
+		// WooCommerce first-run suppression) must not reach a store the owner set up
+		// themselves. The ability-surface entries apply either way.
+		$toggle_result = Plugin_Abilities_Toggler::enable_for_slug( $slug, ! $was_active && $first_run );
 
 		// Read the version off the plugin header rather than from get_plugins(),
 		// whose cache can predate an install this call just ran. Callers gate

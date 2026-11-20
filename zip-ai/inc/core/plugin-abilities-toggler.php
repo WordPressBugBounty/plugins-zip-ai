@@ -14,6 +14,36 @@ defined( 'ABSPATH' ) || exit;
 class Plugin_Abilities_Toggler {
 
 	/**
+	 * Set when ERA installs WooCommerce as a new store for a build: the build sets that
+	 * store up (wp-importer `ownsStore`, mirrored). Cleared when WooCommerce is deleted.
+	 *
+	 * @var string
+	 */
+	public const WOO_INSTALLED_OPTION = 'zip_ai_installed_woocommerce';
+
+	/**
+	 * Set by a build once it has set that store up (wp-importer `setUpStore`, mirrored).
+	 *
+	 * @var string
+	 */
+	public const STORE_SET_UP_OPTION = 'zip_ai_store_set_up';
+
+	/**
+	 * Set by the build that made the site's SureCart store (wp-importer `surecartCommit`, mirrored):
+	 * the build sets that store up. Cleared when SureCart is deleted.
+	 *
+	 * @var string
+	 */
+	public const SURECART_INSTALLED_OPTION = 'zip_ai_installed_surecart';
+
+	/**
+	 * Set by a build once it has set the SureCart store up.
+	 *
+	 * @var string
+	 */
+	public const SURECART_SET_UP_OPTION = 'zip_ai_surecart_set_up';
+
+	/**
 	 * Wire the `activated_plugin` core action so any activation path
 	 * (server-side ability, browser-proxied `POST /wp/v2/plugins`, admin
 	 * UI, WP-CLI) triggers MCP-ability toggles for mapped slugs.
@@ -31,6 +61,69 @@ class Plugin_Abilities_Toggler {
 		// `switch_theme()` from the builder), so enable the new theme's mapped
 		// abilities here. Idempotent + slug-map gated, same as the plugin path.
 		add_action( 'switch_theme', array( __CLASS__, 'on_switch_theme' ), 20, 2 );
+		add_action( 'deleted_plugin', array( __CLASS__, 'on_deleted_plugin' ), 10, 2 );
+		add_action( 'init', array( __CLASS__, 'register_store_marks' ) );
+	}
+
+	/**
+	 * The store marks, over `/wp/v2/settings` (manage_options): the importer reads and records
+	 * them there, since WooCommerce's `/wc-admin/options` serves only its own frozen whitelist.
+	 * No default, so an unset mark stays `false` to PHP. The group is the plugin's own, which
+	 * no admin form posts.
+	 */
+	public static function register_store_marks(): void {
+		foreach ( array( self::WOO_INSTALLED_OPTION, self::STORE_SET_UP_OPTION, self::SURECART_INSTALLED_OPTION, self::SURECART_SET_UP_OPTION ) as $option ) {
+			register_setting(
+				'zip_ai',
+				$option,
+				array(
+					'type'              => 'string',
+					'show_in_rest'      => true,
+					'sanitize_callback' => 'sanitize_key',
+				)
+			);
+		}
+		// SureCart's shop page, which a build's menu links to: SureCart keeps its id in this option and serves it nowhere else.
+		register_setting(
+			'zip_ai',
+			'surecart_shop_page_id',
+			array(
+				'type'              => 'integer',
+				'show_in_rest'      => true,
+				'sanitize_callback' => 'absint',
+			)
+		);
+	}
+
+	/**
+	 * A deleted WooCommerce or SureCart is no longer a store ERA installed: one installed again
+	 * later is whoever installs it.
+	 *
+	 * @param string $plugin_file Relative plugin file path.
+	 * @param bool   $deleted     Whether the files were deleted.
+	 */
+	public static function on_deleted_plugin( $plugin_file, $deleted ): void {
+		if ( $deleted && 0 === strpos( (string) $plugin_file, 'woocommerce/' ) ) {
+			delete_option( self::WOO_INSTALLED_OPTION );
+			delete_option( self::STORE_SET_UP_OPTION );
+		}
+		if ( $deleted && 0 === strpos( (string) $plugin_file, 'surecart/' ) ) {
+			delete_option( self::SURECART_INSTALLED_OPTION );
+			delete_option( self::SURECART_SET_UP_OPTION );
+		}
+	}
+
+	/**
+	 * Whether a mapped plugin has never run on this site (its `first_run_option` is unset;
+	 * a plugin naming none always has not). Read it BEFORE activating the plugin: an
+	 * activation that runs the plugin's own installer sets that option.
+	 *
+	 * @param string $slug Plugin slug.
+	 * @return bool
+	 */
+	public static function first_run( string $slug ): bool {
+		$option = self::MAP[ sanitize_key( $slug ) ]['first_run_option'] ?? '';
+		return '' === $option || false === get_option( $option );
 	}
 
 	/**
@@ -73,7 +166,7 @@ class Plugin_Abilities_Toggler {
 					if ( $sweep_self ) {
 						self::sweep_active_mapped_plugins();
 					} else {
-						self::enable_for_slug( $slug );
+						self::enable_for_slug( $slug, false );
 					}
 				} finally {
 					restore_current_blog();
@@ -87,7 +180,8 @@ class Plugin_Abilities_Toggler {
 			return;
 		}
 
-		self::enable_for_slug( $slug );
+		// An activation we did not perform: `install_only` entries stay out.
+		self::enable_for_slug( $slug, false );
 	}
 
 	/**
@@ -103,7 +197,7 @@ class Plugin_Abilities_Toggler {
 	 */
 	public static function on_switch_theme( $new_name = '', $new_theme = null ): void {
 		foreach ( self::theme_slugs_for( $new_theme ) as $slug ) {
-			self::enable_for_slug( $slug );
+			self::enable_for_slug( $slug, false );
 		}
 	}
 
@@ -137,7 +231,8 @@ class Plugin_Abilities_Toggler {
 		$slugs = array_merge( self::active_plugin_slugs(), self::theme_slugs_for() );
 		foreach ( $slugs as $slug ) {
 			if ( array_key_exists( $slug, self::MAP ) ) {
-				self::enable_for_slug( $slug );
+				// A plugin that was already active is not one we just installed.
+				self::enable_for_slug( $slug, false );
 			}
 		}
 	}
@@ -251,6 +346,44 @@ class Plugin_Abilities_Toggler {
 				array(
 					'type' => 'delete_option',
 					'name' => '__srfm_do_redirect',
+				),
+			),
+		),
+		'woocommerce'    => array(
+			// ERA-driven installs ONLY. Every other entry in this map turns on a
+			// plugin's ability/MCP surface, which is right however the plugin was
+			// activated — but this entry suppresses a FIRST-RUN EXPERIENCE. Run
+			// from the `activated_plugin` hook or the connect sweep it would take
+			// the setup wizard away from a site owner who installed WooCommerce
+			// themselves, and mark a profiler they may be halfway through as
+			// skipped. The builder reaches it through
+			// `zipai/install-bundled-plugin`, which calls `enable_for_slug`
+			// directly.
+			'install_only'     => true,
+			// A store that has run before is the owner's, whoever activates it now.
+			'first_run_option' => 'woocommerce_version',
+			'operations'       => array(
+				// Suppress the post-activation redirect to the setup wizard and
+				// mark the onboarding profiler skipped, so the first wp-admin
+				// visit after an ERA-driven install lands on the dashboard, not
+				// the wizard. Merge, never replace: Woo owns the other keys.
+				array(
+					'type' => 'delete_transient',
+					'name' => '_wc_activation_redirect',
+				),
+				array(
+					'type'   => 'set_option_array_keys',
+					'name'   => 'woocommerce_onboarding_profile',
+					'values' => array(
+						'skipped' => true,
+					),
+				),
+				// The store is the build's to set up (wp-importer `ownsStore`, mirrored);
+				// a store the owner installed keeps its settings.
+				array(
+					'type'  => 'set_option',
+					'name'  => self::WOO_INSTALLED_OPTION,
+					'value' => '1',
 				),
 			),
 		),
@@ -558,10 +691,15 @@ class Plugin_Abilities_Toggler {
 	/**
 	 * Enable MCP abilities for a plugin slug when mapped.
 	 *
-	 * @param string $slug Plugin slug.
+	 * @param string $slug          Plugin slug.
+	 * @param bool   $era_installed Whether THIS call installed or activated the
+	 *                              plugin, and it had never run here (`first_run`,
+	 *                              read before activating it). Only then do
+	 *                              `install_only` entries (a plugin's first-run
+	 *                              suppression) apply.
 	 * @return array<string,mixed>
 	 */
-	public static function enable_for_slug( string $slug ): array {
+	public static function enable_for_slug( string $slug, bool $era_installed = false ): array {
 		$slug = sanitize_key( $slug );
 		$map  = self::MAP;
 
@@ -570,6 +708,17 @@ class Plugin_Abilities_Toggler {
 				'handled' => false,
 				'slug'    => $slug,
 				'mode'    => 'none',
+				'applied' => 0,
+			);
+		}
+
+		// An `install_only` entry changes a plugin's FIRST-RUN experience, which
+		// is ours to decide only for a plugin ERA installed itself.
+		if ( ! empty( $map[ $slug ]['install_only'] ) && ! $era_installed ) {
+			return array(
+				'handled' => false,
+				'slug'    => $slug,
+				'mode'    => 'install_only',
 				'applied' => 0,
 			);
 		}

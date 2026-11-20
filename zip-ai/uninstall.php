@@ -31,6 +31,7 @@ function zip_ai_delete_option( $option ) {
 zip_ai_delete_option( 'zip_ai_settings' );
 zip_ai_delete_option( 'zip_ai_audit_log' );
 zip_ai_delete_option( 'zip_ai_encryption_key' );
+zip_ai_delete_option( 'zip_ai_brand_context' );
 
 // Transients.
 delete_transient( 'zip_ai_last_scan_time' );

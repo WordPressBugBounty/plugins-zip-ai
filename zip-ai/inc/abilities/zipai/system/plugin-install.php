@@ -21,6 +21,7 @@ use Plugin_Upgrader;
 use WP_Ajax_Upgrader_Skin;
 use ZipAI\MCP\Classes\Abilities\Zipai\System\PluginResolver;
 use ZipAI\MCP\Classes\Abilities\Abstract_Ability;
+use ZipAI\MCP\Classes\Core\Plugin_Abilities_Toggler;
 use ZipAI\MCP\Classes\Core\Response;
 use ZipAI\MCP\Classes\Core\Tool_Types;
 
@@ -260,6 +261,8 @@ class PluginInstall extends Abstract_Ability {
 		$is_active = $already_installed ? is_plugin_active( $plugin_file ) : false;
 		$activated = false;
 		if ( $want_active && ! $is_active ) {
+			// read before the plugin runs: a store that ran before is the owner's
+			$first_run       = Plugin_Abilities_Toggler::first_run( $slug );
 			$activate_result = activate_plugin( $plugin_file, '', false, true );
 			if ( is_wp_error( $activate_result ) ) {
 				return Response::error( sprintf( 'Installed but activation failed: %s', $activate_result->get_error_message() ) );
@@ -272,6 +275,12 @@ class PluginInstall extends Abstract_Ability {
 				return Response::error( sprintf( 'Plugin "%s" installed but could not be activated.', $slug ) );
 			}
 			$activated = true;
+			// Activation ran silently (no `activated_plugin` hook), so the toggler
+			// did not see it: switch the plugin's ability surface on here — and,
+			// when THIS call activated a plugin that had never run here, its
+			// ERA-only first-run entries too (the WooCommerce wizard skip the
+			// builder's approval card relies on).
+			Plugin_Abilities_Toggler::enable_for_slug( $slug, $first_run );
 		}
 
 		// Clear the cache only when something actually changed — a fresh install

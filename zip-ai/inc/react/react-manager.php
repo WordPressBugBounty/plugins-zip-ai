@@ -309,17 +309,6 @@ class React_Manager {
 		// delivered server-to-server and read from the issuing Sanctum token's
 		// encrypted meta at turn time.
 
-		// Brand context (business type/tone/description) so the chat's colour
-		// picker can generate ON-BRAND palettes. Stored by the design system as
-		// the `zip_ai_brand_context` option; may be a JSON string or an array.
-		$brand_context = get_option( 'zip_ai_brand_context', array() );
-		if ( is_string( $brand_context ) ) {
-			$brand_context = json_decode( $brand_context, true );
-		}
-		if ( ! is_array( $brand_context ) ) {
-			$brand_context = array();
-		}
-
 		// Free/guest temp-site expiry (ISO-8601 UTC). The zipwp-client mu-plugin
 		// stores it in the `zipwp_site_data` option and we suppress ZipWP's own
 		// admin-bar countdown when ZIP AI owns the surface, so the assistant
@@ -339,6 +328,13 @@ class React_Manager {
 
 		$browser_token = Browser_Token::get();
 
+		// A default title names no business: the font preview then keeps its sample headline.
+		$site_title = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- core's own default title, translated as core translates it.
+		if ( in_array( $site_title, array( __( 'My Site', 'default' ), 'My WordPress Website' ), true ) ) {
+			$site_title = '';
+		}
+
 		$this->localize_script(
 			'chat-assistant',
 			'ZIPAI_CONFIG',
@@ -352,11 +348,32 @@ class React_Manager {
 				// Shows the grid card's Redesign button (re-fires the card's generation call), for local
 				// debugging. Off unless wp-config.php defines ZIPAI_DEBUG_REDESIGN as true.
 				'debugRedesign'       => defined( 'ZIPAI_DEBUG_REDESIGN' ) && ZIPAI_DEBUG_REDESIGN,
+				// The plugins the site runs, by folder slug: the brain's site-type offer leads with a
+				// store the site already sells from.
+				'activePlugins'       => array_values(
+					array_unique(
+						array_filter(
+							array_map(
+								static function ( $file ) {
+									return is_string( $file ) ? sanitize_key( dirname( $file ) ) : '';
+								},
+								// a network-activated plugin runs here too
+								array_merge( (array) get_option( 'active_plugins', array() ), is_multisite() ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array() )
+							),
+							static function ( $slug ) {
+								return '' !== $slug && '.' !== $slug;
+							}
+						)
+					)
+				),
 				'apiUrl'              => rtrim( ZIPAI_MCP_CREDIT_SERVER_API, '/' ),
 				// Server base URL for direct calls (e.g. inline-edit). Set via the
 				// ZIPAI_BRAIN_URL constant (defined in loader.php); override in
 				// wp-config.php.
 				'brainUrl'            => rtrim( ZIPAI_BRAIN_URL, '/' ),
+				// This plugin's version: every call sends it, and the server answers
+				// "update ZIP AI" to a version older than the one it serves.
+				'version'             => ZIPAI_MCP_VERSION,
 				'token'               => $browser_token['token'],
 				'tokenExpiresAt'      => $browser_token['expires_at'],
 				'browserTokenUrl'     => esc_url_raw( rest_url( 'zip-ai/v1/browser-token' ) ),
@@ -385,12 +402,12 @@ class React_Manager {
 					'name'  => Helper::get_setting( 'user_name', '' ),
 				),
 				'expireAt'            => $expire_at,
+				// The site's name — the font picker's specimen headline.
+				'siteTitle'           => $site_title,
 				// A site ZipWP provisioned carries the `zipwp_site_data` option; the
 				// upgrade CTAs send any other site to credits pricing, not plans.
 				'isZipwpSite'         => is_array( $zipwp_site_data ) && ! empty( $zipwp_site_data ),
 				'funnelSessionId'     => $funnel_session_id,
-				// Brand context for on-brand palette generation (colour picker).
-				'brandContext'        => $brand_context,
 				'nonce'               => wp_create_nonce( 'zip_ai_iframe' ),
 				// wp_rest nonce — required by browser-side code that calls WP
 				// core REST endpoints using the user's session cookie (e.g.
@@ -632,12 +649,21 @@ class React_Manager {
 
 		$auth_middleware = ZIPAI_MCP_MIDDLEWARE;
 
+		/**
+		 * Filter the signup source ZipWP records for an account created through
+		 * this connect. A plugin that hands users off to ZIP AI (Spectra Blocks)
+		 * returns its own slug so the signup keeps its referral attribution.
+		 *
+		 * @param string $source Signup source slug. Default 'zip-ai'.
+		 */
+		$source = sanitize_key( apply_filters( 'zipai_signup_source', 'zip-ai' ) );
+
 		$auth_url = add_query_arg(
 			array(
 				'type'         => 'token',
 				'redirect_url' => rawurlencode( $redirect_url ),
 				'state'        => $state,
-				'source'       => 'zip-ai',
+				'source'       => '' !== $source ? $source : 'zip-ai',
 			),
 			$auth_middleware
 		);

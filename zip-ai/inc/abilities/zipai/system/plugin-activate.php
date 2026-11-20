@@ -19,6 +19,7 @@ namespace ZipAI\MCP\Classes\Abilities\Zipai\System;
 
 use ZipAI\MCP\Classes\Abilities\Abstract_Ability;
 use ZipAI\MCP\Classes\Abilities\Zipai\System\PluginResolver;
+use ZipAI\MCP\Classes\Core\Plugin_Abilities_Toggler;
 use ZipAI\MCP\Classes\Core\Response;
 use ZipAI\MCP\Classes\Core\Tool_Types;
 
@@ -125,7 +126,10 @@ class PluginActivate extends Abstract_Ability {
 			);
 		}
 
-		$result = activate_plugin( $plugin_file, '', false, true );
+		$owner_slug = false !== strpos( $plugin_file, '/' ) ? strtolower( explode( '/', $plugin_file )[0] ) : '';
+		// read before the plugin runs: a store that ran before is the owner's
+		$first_run = '' !== $owner_slug && Plugin_Abilities_Toggler::first_run( $owner_slug );
+		$result    = activate_plugin( $plugin_file, '', false, true );
 		if ( is_wp_error( $result ) ) {
 			return Response::error( sprintf( 'Activation failed: %s', $result->get_error_message() ) );
 		}
@@ -138,6 +142,15 @@ class PluginActivate extends Abstract_Ability {
 		$active_plugins = get_option( 'active_plugins', array() );
 		if ( ! is_array( $active_plugins ) || ! in_array( $plugin_file, $active_plugins, true ) ) {
 			return Response::error( sprintf( 'Plugin "%s" did not activate (no error returned, but plugin remains inactive).', $slug ) );
+		}
+
+		// Activation ran silently (no `activated_plugin` hook), so the toggler did not
+		// see it: switch the plugin's ability surface on here — and, when THIS call
+		// activated a plugin that had never run here, its ERA-only first-run entries too
+		// (the WooCommerce wizard skip the builder's Activate card relies on), as
+		// `zipai/install-plugin` does.
+		if ( '' !== $owner_slug ) {
+			Plugin_Abilities_Toggler::enable_for_slug( $owner_slug, $first_run );
 		}
 
 		return array(

@@ -341,7 +341,9 @@ return;
         }
         return null;
     }
-    function assertAllowedChildren( sel, root, blocks ) {
+    // `replacing`: a refused replace keeps its block, so the hint names the
+    // ancestor to replace, never an insert beside it (a duplicate section).
+    function assertAllowedChildren( sel, root, blocks, replacing ) {
         if ( typeof sel.canInsertBlockType !== 'function' ) {
 return;
 }
@@ -358,7 +360,9 @@ continue;
             throw new Error(
                 'child_not_allowed:' + name + ' cannot go inside ' + parentName +
                 ( where ? ' — the nearest container that accepts it is ' + where : '' ) +
-                '. Place it there, or ask the user where they want it.'
+                ( replacing
+                    ? '. Replace the block in ' + ( where || 'that container' ) + ' that holds this one instead, or ask the user.'
+                    : '. Place it there, or ask the user where they want it.' )
             );
         }
     }
@@ -2227,6 +2231,11 @@ markNonPersistent( dis );
                     } );
                     assertEffectiveContent( op.blocks, repBlocks );
                 }
+                // Gutenberg's replaceBlocks silently no-ops when the target's parent
+                // cannot hold the new block — refuse first, like insertBlocks.
+                if ( op.clientIds && op.clientIds.length > 0 && typeof sel.getBlockRootClientId === 'function' ) {
+                    assertAllowedChildren( sel, sel.getBlockRootClientId( op.clientIds[ 0 ] ), repBlocks, true );
+                }
                 const repImpact = removalImpact( sel, op.clientIds );
                 dis.replaceBlocks( op.clientIds, repBlocks );
                 return {
@@ -2362,7 +2371,7 @@ newIds.push( id );
     }
 
     // F4 — STRUCTURAL-effect verdict for a minting op. insertBlocks /
-    // duplicateBlocks / replaceInnerBlocks all MINT clientIds; the op only
+    // duplicateBlocks / replaceBlocks / replaceInnerBlocks all MINT clientIds; the op only
     // truly LANDED if those minted blocks are actually in the tree now. A
     // dispatch that produced an applied entry but whose minted ids never
     // appeared (target detached, coalesced away, silent drop) changed nothing —
@@ -2373,7 +2382,7 @@ newIds.push( id );
     // test locks the REAL logic against a mock sel.
     function structurallyLanded( op, entry, getBlock ) {
         const fn = op && op.function;
-        if ( fn !== 'insertBlocks' && fn !== 'duplicateBlocks' && fn !== 'replaceInnerBlocks' ) {
+        if ( fn !== 'insertBlocks' && fn !== 'duplicateBlocks' && fn !== 'replaceInnerBlocks' && fn !== 'replaceBlocks' ) {
             return true;
         }
         const ids = ( entry && entry.new_client_ids ) || [];
@@ -2385,7 +2394,8 @@ newIds.push( id );
             return false;
         }
         // insertBlocks / duplicateBlocks ALWAYS add ≥1 block — zero minted means
-        // nothing was added. replaceInnerBlocks may legitimately mint zero
+        // nothing was added (replaceBlocks with zero blocks is a removal, so it
+        // may mint zero too). replaceInnerBlocks may legitimately mint zero
         // (clearing a container's children is a valid structural change; a
         // non-empty blocks[] always mints, so empty here ⇒ intended clear), so
         // it is NOT required to mint.
@@ -2515,6 +2525,13 @@ entry.unknown_icons = res.unknown_icons;
                 if ( res && res.impact ) {
 entry.impact = res.impact;
 }
+                // Judged right after its own dispatch (the store applies it
+                // synchronously): a later op in this plan may remove what it minted.
+                if ( ! structurallyLanded( op, entry, function ( id ) {
+                    return sel.getBlock( id );
+                } ) ) {
+                    entry.landed = false;
+                }
                 applied.push( entry );
                 // [RTRACE] EXEC #3 — what the dispatch returned (minted clientIds / rendered text / dropped attrs).
                 rtrace( 'runOp:result', {
@@ -2557,21 +2574,7 @@ entry.impact = res.impact;
             // style already moved at phase 1 (the common case) pay nothing extra
             // and the reply leaves at 120ms exactly as before.
             function finishReply( classNames ) {
-                // F4 — stamp landed:false on any minting op whose blocks aren't in
-                // the tree now (see structurallyLanded). Runs in BOTH settle paths
-                // (fast + phase-2) because it lives here. Only sets the flag when
-                // NOT landed — an absent flag means landed (brain degrades-open).
                 for ( let s = 0; s < applied.length; s++ ) {
-                    const landed = structurallyLanded(
-                        ops[ applied[ s ].index ],
-                        applied[ s ],
-                        function ( id ) {
-                            return sel.getBlock( id );
-                        }
-                    );
-                    if ( ! landed ) {
-                        applied[ s ].landed = false;
-                    }
                     // Phantom motion: a className op whose block resolves an
                     // `animation-name` with NO `@keyframes` (e.g. `animate-bounce`
                     // with no `bounce` keyframes). The class applied but paints no
@@ -2645,11 +2648,11 @@ entry.impact = res.impact;
                 // measured the wrong quantity.
                 //
                 // The reply still carries the FACTS the model cannot infer: `landed`
-                // (structurallyLanded, in finishReply), `unknown_attrs`, `failed[]`.
+                // (structurallyLanded, after each op's dispatch), `unknown_attrs`, `failed[]`.
                 // Facts go back; the model holds the intent and decides.
                 //
                 // The 120ms wait STAYS: ensureLiveUtilityCss injects server-parity
-                // CSS and the tree must settle before structurallyLanded reads it.
+                // CSS before the reply reads the page.
                 finishReply( classNames );
               } );
             }, 120 );

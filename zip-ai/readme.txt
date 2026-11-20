@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.21
+Stable tag: 0.0.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -194,6 +194,13 @@ Please report security bugs found in the source code of the ZIP AI plugin throug
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.22 - November 20, 2026 =
+- New: Products on your site keep its design, with the store's own cart button in your button style.
+- Improvement: Adding a page from chat previews it the same way as building your site, in your site's design.
+- Improvement: Installing WooCommerce through ZIP AI no longer opens its setup wizard.
+- Fix: A section redesign that cannot be placed is reported instead of silently skipped.
+- Fix: A long design preference no longer stops design options from showing.
 
 = 0.0.21 - November 18, 2026 =
 - New: A Design panel in the page editor, where one change restyles every page and your looks sit in its first tab.

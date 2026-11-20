@@ -764,6 +764,10 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
     margin-left: -0.5rem;
     margin-right: -0.5rem;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .-mx-3{
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .-mx-3\.5{
     margin-left: -0.875rem;
     margin-right: -0.875rem;
@@ -839,6 +843,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .-ml-1\.5{
     margin-left: -0.375rem;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .-ml-2{
+    margin-left: -0.5rem;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .-mr-1{
     margin-right: -0.25rem;
 }
@@ -847,6 +854,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .-mt-1{
     margin-top: -0.25rem;
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .-mt-2{
+    margin-top: -0.5rem;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .-mt-3{
     margin-top: -0.75rem;
@@ -1513,6 +1523,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[32px\]{
     width: 32px;
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[34\%\]{
+    width: 34%;
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .w-\[340px\]{
     width: 340px;
 }
@@ -1643,6 +1656,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .min-w-\[min\(260px\2c 100\%\)\]{
     min-width: min(260px, 100%);
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[120px\]{
+    max-width: 120px;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .max-w-\[140px\]{
     max-width: 140px;
@@ -2575,6 +2591,9 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .border-line-3{
     border-color: hsl(var(--line-3));
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .border-muted{
+    border-color: hsl(var(--muted));
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .border-muted-foreground\/40{
     border-color: hsl(var(--muted-foreground) / 0.4);
 }
@@ -3281,10 +3300,6 @@ body.zip-ai-popover-mode .zipwp-popover-resize--se { bottom: -4px; right: -4px; 
 :is(#chat-assistant-root, #zip-ai-snippets-root) .px-\[5px\]{
     padding-left: 5px;
     padding-right: 5px;
-}
-:is(#chat-assistant-root, #zip-ai-snippets-root) .px-\[8\%\]{
-    padding-left: 8%;
-    padding-right: 8%;
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .py-0{
     padding-top: 0px;
@@ -6173,6 +6188,9 @@ body.zip-ai-stage-open {
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:text-app-heading:hover{
     color: hsl(var(--app-heading));
 }
+:is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:text-app-text:hover{
+    color: hsl(var(--app-text));
+}
 :is(#chat-assistant-root, #zip-ai-snippets-root) .hover\:text-background:hover{
     color: hsl(var(--background));
 }
@@ -6362,6 +6380,9 @@ body.zip-ai-stage-open {
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .focus-visible\:bg-sunken\/40:focus-visible{
     background-color: hsl(var(--bg-sunken) / 0.4);
+}
+:is(#chat-assistant-root, #zip-ai-snippets-root) .focus-visible\:text-app-text:focus-visible{
+    color: hsl(var(--app-text));
 }
 :is(#chat-assistant-root, #zip-ai-snippets-root) .focus-visible\:text-foreground:focus-visible{
     color: hsl(var(--foreground));

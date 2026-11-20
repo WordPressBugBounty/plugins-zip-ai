@@ -784,6 +784,21 @@ return editorContext;
                     client_id: selectedBlock.clientId,
                     block_name: selectedBlock.name,
                 };
+                // Section slot — mirrors selectedBlockDto.js::sectionSlotOf; keep both in lockstep.
+                if (
+                    typeof blockEditorSelect.canInsertBlockType === 'function' &&
+                    typeof blockEditorSelect.getBlockRootClientId === 'function' &&
+                    window.wp?.blocks?.getBlockType?.( 'spectra/container' )
+                ) {
+                    editorContext.selected_block.accepts_section = !! blockEditorSelect.canInsertBlockType(
+                        'spectra/container',
+                        selectedBlock.clientId
+                    );
+                    editorContext.selected_block.parent_accepts_section = !! blockEditorSelect.canInsertBlockType(
+                        'spectra/container',
+                        blockEditorSelect.getBlockRootClientId( selectedBlock.clientId ) || undefined
+                    );
+                }
                 // Repeater signal — so the brain sees "the user selected a card
                 // grid" and routes "add one more" to a CHILD clone (duplicateBlocks
                 // the last child) instead of authoring a brand-new section. Mirrors
