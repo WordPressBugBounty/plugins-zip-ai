@@ -26,6 +26,7 @@ use ZipAI\MCP\Classes\Admin\Snippet_Admin;
 use ZipAI\MCP\Classes\Imports\ImportTextureGate;
 use ZipAI\MCP\Classes\Imports\SureformsClassBridge;
 use ZipAI\MCP\Classes\Imports\WoocommerceProductBridge;
+use ZipAI\MCP\Classes\Imports\SiteIdentityBridge;
 use ZipAI\MCP\Classes\Core\Live_Edit_Button;
 
 /**
@@ -154,6 +155,15 @@ class Core_Service_Provider extends Service_Provider {
 			}
 		);
 
+		// Register the site identity bridge — a built site's brand shows the site's own
+		// title, tagline and logo, each in the box the brand drew for it.
+		$this->container->singleton(
+			SiteIdentityBridge::class,
+			function () {
+				return new SiteIdentityBridge();
+			}
+		);
+
 		// "Edit with ZIP AI" on the live site, for an admin viewing a page they can edit.
 		$this->container->singleton(
 			Live_Edit_Button::class,
@@ -182,6 +192,7 @@ class Core_Service_Provider extends Service_Provider {
 		$this->container->make( ImportTextureGate::class );
 		$this->container->make( SureformsClassBridge::class );
 		$this->container->make( WoocommerceProductBridge::class );
+		$this->container->make( SiteIdentityBridge::class );
 		$this->container->make( Live_Edit_Button::class );
 		$this->container->make( External_Mcp::class );
 		$this->container->make( Connection_REST_API::class );

@@ -371,6 +371,8 @@ class React_Manager {
 				// ZIPAI_BRAIN_URL constant (defined in loader.php); override in
 				// wp-config.php.
 				'brainUrl'            => rtrim( ZIPAI_BRAIN_URL, '/' ),
+				// The ZipWP app the plans page opens on (ZIPAI_ZIPWP_APP_URL).
+				'zipwpAppUrl'         => untrailingslashit( ZIPAI_ZIPWP_APP_URL ),
 				// This plugin's version: every call sends it, and the server answers
 				// "update ZIP AI" to a version older than the one it serves.
 				'version'             => ZIPAI_MCP_VERSION,

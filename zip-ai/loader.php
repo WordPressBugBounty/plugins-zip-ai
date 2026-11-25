@@ -214,7 +214,7 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			define( 'ZIPAI_MCP_FILE', __DIR__ . '/zip-ai.php' );
 			define( 'ZIPAI_MCP_DIR', plugin_dir_path( ZIPAI_MCP_FILE ) );
 			define( 'ZIPAI_MCP_URL', plugins_url( '/', ZIPAI_MCP_FILE ) );
-			define( 'ZIPAI_MCP_VERSION', '0.0.22' );
+			define( 'ZIPAI_MCP_VERSION', '0.0.23' );
 			define( 'ZIPAI_MCP_MENU_SLUG', 'zip-ai' );
 
 			// Base URL for ZIP AI credit server.
@@ -234,6 +234,10 @@ if ( ! class_exists( '\ZipAI\MCP\Plugin' ) ) {
 			// wp-config.php or the `zipai_brain_url` filter.
 			if ( ! defined( 'ZIPAI_BRAIN_URL' ) ) {
 				define( 'ZIPAI_BRAIN_URL', 'https://brain.zipwp.com' );
+			}
+
+			if ( ! defined( 'ZIPAI_ZIPWP_APP_URL' ) ) {
+				define( 'ZIPAI_ZIPWP_APP_URL', 'https://app.zipwp.com' );
 			}
 
 			// API endpoint for credit server.

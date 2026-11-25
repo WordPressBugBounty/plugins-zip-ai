@@ -4,7 +4,7 @@ Tags: ai website builder, website builder, wordpress ai, ai agent, gutenberg
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.0.22
+Stable tag: 0.0.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Donate link: https://www.paypal.me/BrainstormForce
@@ -119,6 +119,11 @@ Used to: fetch the binary of an Unsplash stock photo you have explicitly picked 
 Data sent: a standard HTTP GET request for the image URL. No personal data, no chat content.
 Terms: [Unsplash Terms](https://unsplash.com/terms) - [Unsplash Privacy Policy](https://unsplash.com/privacy)
 
+**7. ZipWP plans and pricing pages** - `https://app.zipwp.com/plans`, `https://app.zipwp.com/credits-pricing`
+Used to: show ZipWP's plans, or AI credit packs on a site ZipWP did not create, when you click an upgrade link in the plugin. On a free plan on a site ZipWP created, the plans page also opens when you click Build in the website builder. The page opens in a popup or a browser tab, where you can keep the free plan, buy a plan, or close it.
+Data sent: the page address carries a source tag naming the link you clicked and, on a site ZipWP created, that site's ZipWP ID and web address, so the plans page can bring you back to your site. When you are done there, the plans page tells this site whether you kept the free plan or bought one. No chat content and no site content.
+Terms: [Terms of Service](https://store.brainstormforce.com/terms-and-conditions/) - [Privacy Policy](https://store.brainstormforce.com/privacy-policy/)
+
 No data leaves your site until you authenticate and send a message. You can clear all stored memory at any time via "Clear Site Memory" in the plugin menu.
 
 == Installation ==
@@ -194,6 +199,14 @@ Please report security bugs found in the source code of the ZIP AI plugin throug
 1. Chat with ZIP AI directly inside your WordPress dashboard to build and edit your site.
 
 == Changelog ==
+
+= 0.0.23 - November 25, 2026 =
+- New: Add section builds the new section from your site's design library, in both editors.
+- New: Store products can have options like size or color, each with its own price.
+- New: Add store products by pasting a price list.
+- New: A bar under the chat box shows how full a chat is, with a note where older messages were summarized.
+- Improvement: Your site's title, tagline and logo come from WordPress settings, so changing them updates the header and footer.
+- Improvement: Every divider, background and hero overlay in the Design panel has a preview picture.
 
 = 0.0.22 - November 20, 2026 =
 - New: Products on your site keep its design, with the store's own cart button in your button style.
