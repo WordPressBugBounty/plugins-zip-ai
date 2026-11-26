@@ -1,7 +1,7 @@
 /*!
  * ZipWP MCP - Combined JavaScript
- * Version: 0.0.23
- * Build: 2026-11-25 14:28:54
+ * Version: 0.0.24
+ * Build: 2026-11-26 09:22:16
  */
 
 /**
@@ -856,6 +856,44 @@ return false;
         return bannedVisualAttrs.indexOf( key ) !== -1;
     }
 
+    // HARDCODED MIRROR of config/spectra-contract.json `style_settings` (the same
+    // repo as `banned_attrs` above), the one exception to the `style` ban: settings a
+    // block keeps in its own `style` that are no CSS. Spectra's Slider keeps its
+    // slides per view and the gap between slides there, desktop at the root of
+    // `style`, tablet and phone under its `@tablet` / `@mobile` states, and hands them
+    // to Swiper; the converter writes them there for a slider the AI wrote.
+    const styleSettings = { 'spectra/slider': [ 'slidesPerView', 'spaceBetween' ] };
+    const styleSettingStates = [ '@tablet', '@mobile' ];
+
+    // The block's own `style` reduced to the settings it may keep there, or
+    // undefined when the block keeps none or the style holds none of them.
+    function styleSettingsOf( blockName, style ) {
+        const keys = styleSettings[ blockName ];
+        const isObject = ( v ) => !! v && typeof v === 'object' && ! Array.isArray( v );
+        if ( ! keys || ! isObject( style ) ) {
+            return undefined;
+        }
+        const pick = ( from ) => {
+            const kept = {};
+            keys.forEach( function ( k ) {
+                if ( from[ k ] !== undefined ) {
+                    kept[ k ] = from[ k ];
+                }
+            } );
+            return kept;
+        };
+        const out = pick( style );
+        styleSettingStates.forEach( function ( state ) {
+            if ( isObject( style[ state ] ) ) {
+                const kept = pick( style[ state ] );
+                if ( Object.keys( kept ).length > 0 ) {
+                    out[ state ] = kept;
+                }
+            }
+        } );
+        return Object.keys( out ).length > 0 ? out : undefined;
+    }
+
     // True when this block type actually persists `spectraCustomJS` (the
     // registry, not a mirrored name list — see the file header).
     function isJsCapable( blockName ) {
@@ -1265,6 +1303,7 @@ return;
         window.zipwpEditorShared.isAiInsertableRoot = isAiInsertableRoot;
         window.zipwpEditorShared.bannedVisualAttrs = bannedVisualAttrs;
         window.zipwpEditorShared.isBannedVisualAttr = isBannedVisualAttr;
+        window.zipwpEditorShared.styleSettingsOf = styleSettingsOf;
         window.zipwpEditorShared.isJsCapable = isJsCapable;
         window.zipwpEditorShared.referencedIds = referencedIds;
         window.zipwpEditorShared.classDependents = classDependents;
@@ -1295,6 +1334,7 @@ return;
             isAiInsertableRoot,
             bannedVisualAttrs,
             isBannedVisualAttr,
+            styleSettingsOf,
         };
     }
 }() );
@@ -1350,7 +1390,17 @@ return;
         const u = sharedEditorUtils();
         return !! ( u && typeof u.isBannedVisualAttr === 'function' && u.isBannedVisualAttr( key ) );
     }
-    function stripBannedAttrs( attrs ) {
+    // The settings a block keeps in its own `style` that are no CSS (the contract's
+    // `style_settings`, mirrored in editor-shared-utils): a Slider's slides per view
+    // and gap per device. Undefined when the shared module is not resolved, so the
+    // whole `style` is stripped, as before.
+    function styleSettingsOf( blockName, style ) {
+        const u = sharedEditorUtils();
+        return u && typeof u.styleSettingsOf === 'function' ? u.styleSettingsOf( blockName, style ) : undefined;
+    }
+    // `blockName`: the block the attrs belong to, where the caller knows it (an
+    // insert or replace spec, a parsed tree). Without it `style` is stripped whole.
+    function stripBannedAttrs( attrs, blockName ) {
         if ( ! isPlainObject( attrs ) ) {
 return attrs;
 }
@@ -1359,7 +1409,12 @@ return attrs;
             if ( ! isBannedVisualAttr( k ) ) {
 clean[ k ] = attrs[ k ];
 } else {
+                const settings = k === 'style' ? styleSettingsOf( blockName, attrs[ k ] ) : undefined;
+                if ( settings !== undefined ) {
+                    clean[ k ] = settings;
+                } else {
 console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling belongs in className', k );
+}
 }
         } );
         return clean;
@@ -1514,7 +1569,7 @@ console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling
             return;
         }
         if ( block.attributes ) {
-            block.attributes = stripBannedAttrs( block.attributes );
+            block.attributes = stripBannedAttrs( block.attributes, block.name );
         }
         if ( Array.isArray( block.innerBlocks ) ) {
             block.innerBlocks.forEach( stripBannedAttrsDeep );
@@ -2100,7 +2155,7 @@ return;
         // paint a banned visual attr into a freshly-minted block even if a stale/
         // forked brain bundle folds one through. Defense-in-depth behind the brain
         // blockSpec zod; symmetric with the update path.
-        const parts = partitionAttrs( spec.name, placeContent( spec.name, stripBannedAttrs( spec.attributes ) ) );
+        const parts = partitionAttrs( spec.name, placeContent( spec.name, stripBannedAttrs( spec.attributes, spec.name ) ) );
         if ( unknownSink && parts.unknown.length ) {
             Array.prototype.push.apply( unknownSink, parts.unknown );
         }
@@ -3253,7 +3308,7 @@ out.responsiveControls = rcOut;
     // `currentAttrs` (the live block's attributes) lets image routing mirror a
     // container background into its responsive overrides.
     function normalizePlanAttrs( name, attributes, sink, currentAttrs, iconSink ) {
-        let a = stripBannedAttrs( attributes || {} );
+        let a = stripBannedAttrs( attributes || {}, name );
         a = coerceGridLayoutLengthAttrs( a );
         a = placeContent( name, a );
         a = normalizeImageAttrs( name, a, currentAttrs );

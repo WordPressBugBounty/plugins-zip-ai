@@ -185,6 +185,44 @@
         return bannedVisualAttrs.indexOf( key ) !== -1;
     }
 
+    // HARDCODED MIRROR of config/spectra-contract.json `style_settings` (the same
+    // repo as `banned_attrs` above), the one exception to the `style` ban: settings a
+    // block keeps in its own `style` that are no CSS. Spectra's Slider keeps its
+    // slides per view and the gap between slides there, desktop at the root of
+    // `style`, tablet and phone under its `@tablet` / `@mobile` states, and hands them
+    // to Swiper; the converter writes them there for a slider the AI wrote.
+    const styleSettings = { 'spectra/slider': [ 'slidesPerView', 'spaceBetween' ] };
+    const styleSettingStates = [ '@tablet', '@mobile' ];
+
+    // The block's own `style` reduced to the settings it may keep there, or
+    // undefined when the block keeps none or the style holds none of them.
+    function styleSettingsOf( blockName, style ) {
+        const keys = styleSettings[ blockName ];
+        const isObject = ( v ) => !! v && typeof v === 'object' && ! Array.isArray( v );
+        if ( ! keys || ! isObject( style ) ) {
+            return undefined;
+        }
+        const pick = ( from ) => {
+            const kept = {};
+            keys.forEach( function ( k ) {
+                if ( from[ k ] !== undefined ) {
+                    kept[ k ] = from[ k ];
+                }
+            } );
+            return kept;
+        };
+        const out = pick( style );
+        styleSettingStates.forEach( function ( state ) {
+            if ( isObject( style[ state ] ) ) {
+                const kept = pick( style[ state ] );
+                if ( Object.keys( kept ).length > 0 ) {
+                    out[ state ] = kept;
+                }
+            }
+        } );
+        return Object.keys( out ).length > 0 ? out : undefined;
+    }
+
     // True when this block type actually persists `spectraCustomJS` (the
     // registry, not a mirrored name list — see the file header).
     function isJsCapable( blockName ) {
@@ -594,6 +632,7 @@ return;
         window.zipwpEditorShared.isAiInsertableRoot = isAiInsertableRoot;
         window.zipwpEditorShared.bannedVisualAttrs = bannedVisualAttrs;
         window.zipwpEditorShared.isBannedVisualAttr = isBannedVisualAttr;
+        window.zipwpEditorShared.styleSettingsOf = styleSettingsOf;
         window.zipwpEditorShared.isJsCapable = isJsCapable;
         window.zipwpEditorShared.referencedIds = referencedIds;
         window.zipwpEditorShared.classDependents = classDependents;
@@ -624,6 +663,7 @@ return;
             isAiInsertableRoot,
             bannedVisualAttrs,
             isBannedVisualAttr,
+            styleSettingsOf,
         };
     }
 }() );

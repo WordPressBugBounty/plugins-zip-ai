@@ -48,7 +48,17 @@
         const u = sharedEditorUtils();
         return !! ( u && typeof u.isBannedVisualAttr === 'function' && u.isBannedVisualAttr( key ) );
     }
-    function stripBannedAttrs( attrs ) {
+    // The settings a block keeps in its own `style` that are no CSS (the contract's
+    // `style_settings`, mirrored in editor-shared-utils): a Slider's slides per view
+    // and gap per device. Undefined when the shared module is not resolved, so the
+    // whole `style` is stripped, as before.
+    function styleSettingsOf( blockName, style ) {
+        const u = sharedEditorUtils();
+        return u && typeof u.styleSettingsOf === 'function' ? u.styleSettingsOf( blockName, style ) : undefined;
+    }
+    // `blockName`: the block the attrs belong to, where the caller knows it (an
+    // insert or replace spec, a parsed tree). Without it `style` is stripped whole.
+    function stripBannedAttrs( attrs, blockName ) {
         if ( ! isPlainObject( attrs ) ) {
 return attrs;
 }
@@ -57,7 +67,12 @@ return attrs;
             if ( ! isBannedVisualAttr( k ) ) {
 clean[ k ] = attrs[ k ];
 } else {
+                const settings = k === 'style' ? styleSettingsOf( blockName, attrs[ k ] ) : undefined;
+                if ( settings !== undefined ) {
+                    clean[ k ] = settings;
+                } else {
 console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling belongs in className', k );
+}
 }
         } );
         return clean;
@@ -212,7 +227,7 @@ console.warn( '[ZIP AI:apply-change] dropped banned visual attr "%s" — styling
             return;
         }
         if ( block.attributes ) {
-            block.attributes = stripBannedAttrs( block.attributes );
+            block.attributes = stripBannedAttrs( block.attributes, block.name );
         }
         if ( Array.isArray( block.innerBlocks ) ) {
             block.innerBlocks.forEach( stripBannedAttrsDeep );
@@ -798,7 +813,7 @@ return;
         // paint a banned visual attr into a freshly-minted block even if a stale/
         // forked brain bundle folds one through. Defense-in-depth behind the brain
         // blockSpec zod; symmetric with the update path.
-        const parts = partitionAttrs( spec.name, placeContent( spec.name, stripBannedAttrs( spec.attributes ) ) );
+        const parts = partitionAttrs( spec.name, placeContent( spec.name, stripBannedAttrs( spec.attributes, spec.name ) ) );
         if ( unknownSink && parts.unknown.length ) {
             Array.prototype.push.apply( unknownSink, parts.unknown );
         }
@@ -1951,7 +1966,7 @@ out.responsiveControls = rcOut;
     // `currentAttrs` (the live block's attributes) lets image routing mirror a
     // container background into its responsive overrides.
     function normalizePlanAttrs( name, attributes, sink, currentAttrs, iconSink ) {
-        let a = stripBannedAttrs( attributes || {} );
+        let a = stripBannedAttrs( attributes || {}, name );
         a = coerceGridLayoutLengthAttrs( a );
         a = placeContent( name, a );
         a = normalizeImageAttrs( name, a, currentAttrs );

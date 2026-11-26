@@ -326,6 +326,13 @@ class React_Manager {
 			? $zipwp_site_data['funnel_session_id']
 			: null;
 
+		// ZipWP's own uuid for this site, so the server can tell ZipWP once the site is
+		// built and ZipWP sends its "your website is ready" email. Absent on a site
+		// ZipWP did not provision.
+		$zipwp_site_uuid = ( is_array( $zipwp_site_data ) && isset( $zipwp_site_data['uuid'] ) && is_string( $zipwp_site_data['uuid'] ) && wp_is_uuid( $zipwp_site_data['uuid'] ) )
+			? $zipwp_site_data['uuid']
+			: null;
+
 		$browser_token = Browser_Token::get();
 
 		// A default title names no business: the font preview then keeps its sample headline.
@@ -410,6 +417,7 @@ class React_Manager {
 				// upgrade CTAs send any other site to credits pricing, not plans.
 				'isZipwpSite'         => is_array( $zipwp_site_data ) && ! empty( $zipwp_site_data ),
 				'funnelSessionId'     => $funnel_session_id,
+				'zipwpSiteUuid'       => $zipwp_site_uuid,
 				'nonce'               => wp_create_nonce( 'zip_ai_iframe' ),
 				// wp_rest nonce — required by browser-side code that calls WP
 				// core REST endpoints using the user's session cookie (e.g.
